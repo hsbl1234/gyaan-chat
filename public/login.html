@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Login - Gyan</title>
+    <!-- Bootstrap CSS -->
+    <link href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css" rel="stylesheet">
+    <!-- Font Awesome CSS -->
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css" rel="stylesheet">
+    <style>
+        body {
+            background-color: #f8f9fa; /* Very light gray background */
+            padding: 20px;
+        }
+        .container {
+            max-width: 400px;
+            background-color: #ffffff; /* White background for the form */
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 6px 12px rgba(0, 0, 0, 0.15);
+            margin: 0 auto;
+            margin-top: 50px;
+        }
+        .app-logo {
+            font-size: 64px; /* Larger size for the logo */
+            color: #007bff; /* Bright blue color */
+            margin-bottom: 20px;
+            text-align: center;
+        }
+        .error-message {
+            color: #dc3545; /* Red for errors */
+            margin-top: 5px;
+        }
+        .login-link, .signup-link {
+            text-align: center;
+            margin-top: 15px;
+        }
+        .btn-primary {
+            background-color: #28a745; /* Vibrant green color */
+            border-color: #218838; /* Darker green border */
+        }
+        .btn-primary:hover {
+            background-color: #218838;
+            border-color: #1e7e34;
+        }
+        .btn-secondary {
+            background-color: #17a2b8; /* Teal color */
+            border-color: #138496; /* Darker teal border */
+        }
+        .btn-secondary:hover {
+            background-color: #138496;
+            border-color: #117a8b;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="app-logo">
+            <i class="fas fa-comments"></i>
+            <div>Gyan</div>
+        </div>
+        <h2 class="text-center mb-4">User Login</h2>
+        <form id="loginForm">
+            <div class="form-group">
+                <label for="Email">Email</label>
+                <input type="email" class="form-control" id="Email" name="Email" required>
+            </div>
+            <div class="form-group">
+                <label for="Password">Password</label>
+                <input type="password" class="form-control" id="Password" name="Password" required>
+            </div>
+            <div class="form-group">
+                <button type="submit" class="btn btn-primary btn-block">Login</button>
+            </div>
+        </form>
+        <div id="errorMessage" class="error-message" style="display: none;"></div>
+        <div class="signup-link">
+            <p>New user? <a href="/signup.html">Sign up here</a></p>
+            <a href="/reset.html">Forgot Password?</a>
+        </div>
+    </div>
+    
+ 
+    <!-- Bootstrap JS and dependencies (jQuery, Popper.js) -->
+    <script src="https://code.jquery.com/jquery-3.5.1.slim.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.5.2/dist/umd/popper.min.js"></script>
+    <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
+ 
+    <script>
+        document.getElementById('loginForm').addEventListener('submit', async function(event) {
+            event.preventDefault();
+    
+            const Email = document.getElementById('Email').value;
+            const Password = document.getElementById('Password').value;
+    
+            try {
+                const response = await fetch('/login', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ Email, Password })
+                });
+    
+                const data = await response.json();
+    
+                if (!response.ok) {
+                    if (data.redirect) {
+                        // Redirect to OTP verification page
+                        window.location.href = data.redirect;
+                    } else {
+                        throw new Error(data.error || 'Login failed');
+                    }
+                } else {
+                    const { user, token } = data;
+    
+                    // Store token and full name in local storage
+                    localStorage.setItem('token', token);
+                    localStorage.setItem('fullName', user.fullName);
+                    window.location.href = `/dashboard/${user.id}`;
+                    const response = await fetch('/protected', {
+                        headers: {
+                            'Authorization': `Bearer ${token}`
+                        }
+});
+
+                }
+                
+            } catch (error) {
+                document.getElementById('errorMessage').textContent = error.message;
+                document.getElementById('errorMessage').style.display = 'block';
+            }
+        });
+    </script>
+    
+</body>
+</html>

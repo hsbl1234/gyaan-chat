@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>User Dashboard</title>
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f8f9fa;
+            margin: 0;
+        }
+        .sidebar {
+            background-color: #242424;
+            color: #ffffff;
+            height: 100vh;
+            position: fixed;
+            width: 250px;
+            padding-top: 20px;
+            overflow-y: auto;
+        }
+        .sidebar a {
+            color: #ffffff;
+            display: block;
+            padding: 10px 20px;
+            text-decoration: none;
+        }
+        .sidebar a:hover, .sidebar .nav-item.active a {
+            background-color: #575757;
+        }
+        .sidebar .nav-item.active a {
+            background-color: #007bff;
+            color: white;
+        }
+        .main-content {
+            margin-left: 250px;
+            padding: 20px;
+        }
+        .header {
+            background-color: #007bff;
+            padding: 10px;
+            color: white;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .header .profile {
+            display: flex;
+            align-items: center;
+        }
+        .header .profile img {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            margin-right: 10px;
+        }
+        .header .profile .dropdown-menu {
+            right: 0;
+            left: auto;
+        }
+        .welcome-message {
+            font-size: 24px;
+            font-weight: bold;
+            margin-top: 20px;
+        }
+        .btn-primary {
+            background-color: #28a745;
+            border-color: #218838;
+        }
+        .btn-primary:hover {
+            background-color: #218838;
+            border-color: #1e7e34;
+        }
+        .notifications {
+            position: relative;
+            display: inline-block;
+        }
+        .notifications .badge {
+            position: absolute;
+            top: 0;
+            right: 0;
+            transform: translate(50%, -50%);
+            background-color: red;
+            color: white;
+            border-radius: 50%;
+            padding: 2px 6px;
+            font-size: 0.75rem;
+        }
+    </style>
+</head>
+<body>
+    <div class="sidebar">
+        <div class="d-flex flex-column">
+            <div class="nav-item active"><a href="dash.html"><i class="fas fa-home"></i> Home</a></div>
+            <div class="nav-item"><a href="#"><i class="fas fa-user-friends"></i> Teams</a></div>
+            <div class="nav-item"><a href="#"><i class="fas fa-calendar-alt"></i> Calendar</a></div>
+            <div class="nav-item"><a href="chat.html"><i class="fas fa-comments"></i> Chat <span class="badge" id="chatBadge">3</span></a></div>
+            <div class="nav-item"><a href="#"><i class="fas fa-file-alt"></i> Files</a></div>
+            <div class="nav-item"><a href="#"><i class="fas fa-cog"></i> Settings</a></div>
+        </div>
+    </div>
+
+    <div class="main-content">
+        <div class="header">
+            <h2>User Dashboard</h2>
+            <div class="profile dropdown">
+                <img src="https://via.placeholder.com/40" alt="Profile Picture">
+                <a class="dropdown-toggle" href="#" role="button" id="dropdownMenuLink" data-bs-toggle="dropdown" aria-expanded="false">
+                    <i class="fas fa-cog"></i>
+                </a>
+                <ul class="dropdown-menu" aria-labelledby="dropdownMenuLink">
+                    <li><a class="dropdown-item" href="#">Settings</a></li>
+                    <li><a class="dropdown-item" href="#" id="logoutButton">Logout</a></li>
+                </ul>
+            </div>
+        </div>
+
+        <div class="welcome-message">
+            Welcome, <span id="fullName"></span>!
+        </div>
+    </div>
+
+    <!-- Bootstrap JS and dependencies -->
+    <script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.11.6/dist/umd/popper.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.min.js"></script>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', async () => {
+            const fullNameSpan = document.getElementById('fullName');
+            const token = localStorage.getItem('token');
+
+            if (!token) {
+                alert('You must be logged in to view this page.');
+                window.location.href = '/login.html';
+                return;
+            }
+
+            try {
+                const response = await fetch('/protected', {
+                    headers: {
+                        'Authorization': `Bearer ${token}`
+                    }
+                });
+
+                if (!response.ok) {
+                    throw new Error('Failed to authenticate.');
+                }
+
+                const user = await response.json();
+                const fullName = localStorage.getItem('fullName');
+                fullNameSpan.textContent = fullName || user.fullName || 'User';
+
+                // Update chat badge with unread messages count
+                // For demo purposes, this value is hardcoded. Replace it with actual logic.
+                const chatBadge = document.getElementById('chatBadge');
+                chatBadge.textContent = '3'; // Example count, update this with real data
+
+            } catch (error) {
+                console.error('Error loading dashboard:', error.message);
+            }
+
+            document.getElementById('logoutButton').addEventListener('click', () => {
+                localStorage.removeItem('token');
+                localStorage.removeItem('fullName');
+                alert('Logout successful!');
+                window.location.href = '/login.html';
+            });
+        });
+    </script>
+</body>
+</html>
