@@ -10,46 +10,81 @@
     <style>
         body {
             font-family: Arial, sans-serif;
-            background-color: #f8f9fa;
+            background-color: #f0f2f5;
             margin: 0;
+            overflow-x: hidden;
         }
         .sidebar {
-            background-color: #242424;
-            color: #ffffff;
+            background-color: #ffffff;
+            border-right: 1px solid #ddd;
             height: 100vh;
             position: fixed;
-            width: 250px;
+            width: 70px;
             padding-top: 20px;
             overflow-y: auto;
+            z-index: 1000;
         }
         .sidebar a {
-            color: #ffffff;
+            color: #333;
             display: block;
-            padding: 10px 20px;
+            padding: 15px 0;
+            text-align: center;
             text-decoration: none;
+            font-size: 24px;
         }
         .sidebar a:hover, .sidebar .nav-item.active a {
-            background-color: #575757;
+            background-color: #f0f0f0;
         }
         .sidebar .nav-item.active a {
             background-color: #007bff;
             color: white;
         }
+        .chat-sidebar {
+            background-color: #ffffff;
+            height: 100vh;
+            position: fixed;
+            width: 250px;
+            padding-top: 20px;
+            margin-left: 70px; /* Space for the main sidebar */
+            border-right: 1px solid #ddd;
+            overflow-y: auto;
+            z-index: 1000;
+        }
+        .chat-sidebar .list-group-item {
+            cursor: pointer;
+            border: none;
+            padding: 15px 20px;
+        }
+        .chat-sidebar .list-group-item:hover {
+            background-color: #f0f2f5;
+        }
+        .search-bar {
+            padding: 15px;
+        }
+        .search-bar input {
+            width: 100%;
+            border-radius: 20px;
+            padding-left: 20px;
+        }
         .main-content {
-            margin-left: 250px;
+            margin-left: 320px; /* Space for both sidebars */
             padding: 20px;
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
         }
         .header {
             background-color: #007bff;
             padding: 10px;
             color: white;
             display: flex;
-            justify-content: space-between;
             align-items: center;
+            border-bottom: 1px solid #ddd;
         }
         .header .profile {
             display: flex;
             align-items: center;
+            flex: 1;
         }
         .header .profile img {
             width: 40px;
@@ -61,81 +96,264 @@
             right: 0;
             left: auto;
         }
-        .chat-container {
-            margin-top: 20px;
-        }
-        .chat-messages {
-            border: 1px solid #ddd;
-            border-radius: 5px;
-            padding: 15px;
-            height: 400px;
+        .chat-area {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
             overflow-y: auto;
             background-color: #ffffff;
+            border-radius: 8px;
+            box-shadow: 0 0 10px rgba(0,0,0,0.1);
         }
-        .chat-input {
-            margin-top: 10px;
+        .message {
+            padding: 10px 20px;
+            margin: 10px;
+            border-radius: 15px;
+            max-width: 75%;
+        }
+        .message.sent {
+            background-color: #007bff;
+            color: white;
+            align-self: flex-end;
+        }
+        .message.received {
+            background-color: #e5e5ea;
+            color: black;
+            align-self: flex-start;
+        }
+        .message-input {
+            display: flex;
+            align-items: center;
+            padding: 10px;
+            border-top: 1px solid #ddd;
+            background-color: #ffffff;
+        }
+        .message-input input {
+            flex: 1;
+            border: none;
+            border-radius: 20px;
+            padding: 10px;
+            margin-right: 10px;
+        }
+        .message-input button {
+            border: none;
+            background-color: #007bff;
+            color: white;
+            border-radius: 20px;
+            padding: 10px 20px;
+        }
+        .alert {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            z-index: 2000;
         }
     </style>
 </head>
 <body>
+    <div id="alertContainer"></div> <!-- Container for dynamic alerts -->
+
+
+
     <div class="sidebar">
-        <div class="d-flex flex-column">
-            <div class="nav-item"><a href="dash.html"><i class="fas fa-home"></i> Home</a></div>
-            <div class="nav-item"><a href="#"><i class="fas fa-user-friends"></i> Teams</a></div>
-            <div class="nav-item"><a href="#"><i class="fas fa-calendar-alt"></i> Calendar</a></div>
-            <div class="nav-item active"><a href="chat.html"><i class="fas fa-comments"></i> Chat</a></div>
-            <div class="nav-item"><a href="#"><i class="fas fa-file-alt"></i> Files</a></div>
-            <div class="nav-item"><a href="#"><i class="fas fa-cog"></i> Settings</a></div>
+        <a href="/dashboard.html" class="nav-item"><i class="fas fa-home"></i></a>
+        <a href="/teams.html" class="nav-item"><i class="fas fa-user-friends"></i></a>
+        <a href="/calendar.html" class="nav-item"><i class="fas fa-calendar-alt"></i></a>
+        <a href="/chat.html" class="nav-item active"><i class="fas fa-comments"></i></a>
+        <a href="/files.html" class="nav-item"><i class="fas fa-file-alt"></i></a>
+        <a href="/settings.html" class="nav-item"><i class="fas fa-cog"></i></a>
+    </div>
+
+    <div class="chat-sidebar">
+        <div class="search-bar">
+            <input type="text" id="searchInput" class="form-control" placeholder="Search chats or people..." aria-label="Search chats or people">
+        </div>
+        <h4 class="px-3">Chats & People</h4>
+        <div id="chatList" class="list-group">
+            <!-- Existing chats or people will be injected here -->
         </div>
     </div>
 
     <div class="main-content">
         <div class="header">
-            <h2>Chat</h2>
-            <div class="profile dropdown">
+            <div class="profile">
                 <img src="https://via.placeholder.com/40" alt="Profile Picture">
-                <a class="btn btn-secondary dropdown-toggle" href="#" role="button" id="dropdownMenuLink" data-bs-toggle="dropdown" aria-expanded="false">
-                    Profile
+                <h5 id="chatName">Chat Name</h5>
+            </div>
+            <div class="profile dropdown ms-3">
+                <a class="dropdown-toggle" href="#" role="button" id="dropdownMenuLink" data-bs-toggle="dropdown" aria-expanded="false">
+                    <i class="fas fa-cog"></i>
                 </a>
                 <ul class="dropdown-menu" aria-labelledby="dropdownMenuLink">
-                    <li><a class="dropdown-item" href="#">Settings</a></li>
+                    <li><a class="dropdown-item" href="/settings.html">Settings</a></li>
                     <li><a class="dropdown-item" href="#" id="logoutButton">Logout</a></li>
                 </ul>
             </div>
         </div>
 
-        <div class="chat-container">
-            <div class="chat-messages">
-                <p><strong>John Doe:</strong> Hello, how are you?</p>
-                <p><strong>Jane Smith:</strong> I'm good, thanks! How about you?</p>
-                <!-- Add more messages here -->
-            </div>
-            <div class="chat-input">
-                <div class="input-group">
-                    <input type="text" class="form-control" placeholder="Type a message...">
-                    <button class="btn btn-primary" type="button">Send</button>
-                </div>
-            </div>
+        <div class="chat-area" id="chatArea">
+            <!-- Chat messages will be injected here -->
+        </div>
+        <div class="message-input">
+            <input type="text" id="messageInput" placeholder="Type a message..." aria-label="Type a message">
+            <button id="sendButton" aria-label="Send message">Send</button>
         </div>
     </div>
-
     <!-- Bootstrap JS and dependencies -->
     <script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.11.6/dist/umd/popper.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.min.js"></script>
     <script>
-        document.addEventListener('DOMContentLoaded', () => {
-            const logoutButton = document.getElementById('logoutButton');
+        document.addEventListener('DOMContentLoaded', async () => {
+            const token = localStorage.getItem('token');
+            const chatList = document.getElementById('chatList');
+            const chatArea = document.getElementById('chatArea');
+            const chatName = document.getElementById('chatName');
+            const searchInput = document.getElementById('searchInput');
+            const sendButton = document.getElementById('sendButton');
+            const messageInput = document.getElementById('messageInput');
+            const chatId = new URLSearchParams(window.location.search).get('id'); // Adjust based on your URL structure
 
-            if (logoutButton) {
-                logoutButton.addEventListener('click', () => {
-                    localStorage.removeItem('token');
-                    localStorage.removeItem('fullName');
-                    alert('Logout successful!');
-                    window.location.href = '/login.html';
-                });
-            } else {
-                console.error('Logout button not found.');
+            if (!token) {
+                alert('You must be logged in to view this page.');
+                window.location.href = '/login.html';
+                return;
             }
+                async function fetchChatsAndPeople() {
+        try {
+            const query = 'someName'; // Replace with actual query
+            const response = await fetch(`/api/search?query=${encodeURIComponent(query)}`);
+
+            if (!response.ok) {
+                throw new Error(`HTTP error! Status: ${response.status}`);
+            }
+
+            const data = await response.json();
+            console.log(data);
+            // Handle your data here
+        } catch (error) {
+            console.error('Error loading chats and people:', error);
+        }
+    }
+
+            async function showAlert(message) {
+                const alertDiv = document.createElement('div');
+                alertDiv.className = 'alert alert-warning alert-dismissible fade show';
+                alertDiv.role = 'alert';
+                alertDiv.innerHTML = `
+                    ${message}
+                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                `;
+                document.body.appendChild(alertDiv);
+                setTimeout(() => alertDiv.remove(), 5000);
+            }
+
+            async function fetchChatsAndPeople(query = '') {
+                try {
+                    const response = await fetch(`/api/search?query=${encodeURIComponent(query)}`, {
+                        headers: {
+                            'Authorization': `Bearer ${token}`
+                        }
+                    });
+
+                    if (!response.ok) {
+                        throw new Error('Failed to fetch chats and people.');
+                    }
+
+                    const results = await response.json();
+                    chatList.innerHTML = results.map(item => `
+                        <a href="/chat.html?id=${item.id}" class="list-group-item">
+                            ${item.name}
+                        </a>
+                    `).join('');
+                } catch (error) {
+                    console.error('Error loading chats and people:', error.message);
+                    showAlert('Error loading chats and people. Please try again.');
+                }
+            }
+
+            async function fetchChatMessages() {
+                if (chatId) {
+                    try {
+                        const response = await fetch(`/api/chat/${chatId}`, {
+                            headers: {
+                                'Authorization': `Bearer ${token}`
+                            }
+                        });
+
+                        if (!response.ok) {
+                            throw new Error('Failed to fetch chat messages.');
+                        }
+
+                        const chatData = await response.json();
+                        chatName.textContent = chatData.name;
+                        chatArea.innerHTML = chatData.messages.map(message => `
+                            <div class="message ${message.sender === 'me' ? 'sent' : 'received'}">
+                                ${message.text}
+                            </div>
+                        `).join('');
+                        chatArea.scrollTop = chatArea.scrollHeight; // Auto-scroll to the bottom
+                    } catch (error) {
+                        console.error('Error loading chat messages:', error.message);
+                        showAlert('Error loading chat messages. Please try again.');
+                    }
+                }
+            }
+
+            searchInput.addEventListener('input', () => {
+                const query = searchInput.value.trim();
+                fetchChatsAndPeople(query);
+            });
+
+            sendButton.addEventListener('click', async () => {
+                const messageText = messageInput.value.trim();
+
+                if (messageText.length > 0 && chatId) {
+                    try {
+                        const response = await fetch(`/api/chat/${chatId}/send`, {
+                            method: 'POST',
+                            headers: {
+                                'Authorization': `Bearer ${token}`,
+                                'Content-Type': 'application/json'
+                            },
+                            body: JSON.stringify({ text: messageText })
+                        });
+
+                        if (!response.ok) {
+                            throw new Error('Failed to send message.');
+                        }
+
+                        messageInput.value = '';
+                        chatArea.innerHTML += `
+                            <div class="message sent">
+                                ${messageText}
+                            </div>
+                        `;
+                        chatArea.scrollTop = chatArea.scrollHeight; // Auto-scroll to the bottom
+                    } catch (error) {
+                        console.error('Error sending message:', error.message);
+                        showAlert('Error sending message. Please try again.');
+                    }
+                }
+            });
+
+            messageInput.addEventListener('keypress', (event) => {
+                if (event.key === 'Enter') {
+                    event.preventDefault();
+                    sendButton.click();
+                }
+            });
+
+            document.getElementById('logoutButton').addEventListener('click', () => {
+                localStorage.removeItem('token');
+                alert('Logout successful!');
+                window.location.href = '/login.html';
+            });
+
+            fetchChatsAndPeople(); // Initial fetch
+            fetchChatMessages(); // Fetch messages if a chatId is present
+
+            // Auto-focus the message input field when the page loads
+            messageInput.focus();
         });
     </script>
 </body>

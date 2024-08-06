@@ -12,6 +12,7 @@
             font-family: Arial, sans-serif;
             background-color: #f8f9fa;
             margin: 0;
+            overflow-x: hidden; /* Prevent horizontal scroll */
         }
         .sidebar {
             background-color: #242424;
@@ -21,12 +22,20 @@
             width: 250px;
             padding-top: 20px;
             overflow-y: auto;
+            top: 0;
+            left: 0;
+            z-index: 1000; /* Ensure the sidebar is above other content */
         }
         .sidebar a {
             color: #ffffff;
-            display: block;
+            display: flex;
+            align-items: center;
             padding: 10px 20px;
             text-decoration: none;
+            font-size: 16px;
+        }
+        .sidebar a i {
+            margin-right: 15px; /* Spacing between icon and text */
         }
         .sidebar a:hover, .sidebar .nav-item.active a {
             background-color: #575757;
@@ -36,7 +45,7 @@
             color: white;
         }
         .main-content {
-            margin-left: 250px;
+            margin-left: 250px; /* Ensure content starts after the sidebar */
             padding: 20px;
         }
         .header {
@@ -94,12 +103,12 @@
 <body>
     <div class="sidebar">
         <div class="d-flex flex-column">
-            <div class="nav-item active"><a href="dash.html"><i class="fas fa-home"></i> Home</a></div>
-            <div class="nav-item"><a href="#"><i class="fas fa-user-friends"></i> Teams</a></div>
-            <div class="nav-item"><a href="#"><i class="fas fa-calendar-alt"></i> Calendar</a></div>
-            <div class="nav-item"><a href="chat.html"><i class="fas fa-comments"></i> Chat <span class="badge" id="chatBadge">3</span></a></div>
-            <div class="nav-item"><a href="#"><i class="fas fa-file-alt"></i> Files</a></div>
-            <div class="nav-item"><a href="#"><i class="fas fa-cog"></i> Settings</a></div>
+            <div class="nav-item active"><a href="/dashboard.html"><i class="fas fa-home"></i> Home</a></div>
+            <div class="nav-item"><a href="/teams.html"><i class="fas fa-user-friends"></i> Teams</a></div>
+            <div class="nav-item"><a href="/calendar.html"><i class="fas fa-calendar-alt"></i> Calendar</a></div>
+            <div class="nav-item"><a href="/chat.html"><i class="fas fa-comments"></i> Chat <span class="badge" id="chatBadge">3</span></a></div>
+            <div class="nav-item"><a href="/files.html"><i class="fas fa-file-alt"></i> Files</a></div>
+            <div class="nav-item"><a href="/settings.html"><i class="fas fa-cog"></i> Settings</a></div>
         </div>
     </div>
 
@@ -112,7 +121,7 @@
                     <i class="fas fa-cog"></i>
                 </a>
                 <ul class="dropdown-menu" aria-labelledby="dropdownMenuLink">
-                    <li><a class="dropdown-item" href="#">Settings</a></li>
+                    <li><a class="dropdown-item" href="/settings.html">Settings</a></li>
                     <li><a class="dropdown-item" href="#" id="logoutButton">Logout</a></li>
                 </ul>
             </div>
@@ -121,6 +130,7 @@
         <div class="welcome-message">
             Welcome, <span id="fullName"></span>!
         </div>
+        <!-- Additional content goes here -->
     </div>
 
     <!-- Bootstrap JS and dependencies -->
@@ -150,13 +160,21 @@
                 }
 
                 const user = await response.json();
-                const fullName = localStorage.getItem('fullName');
-                fullNameSpan.textContent = fullName || user.fullName || 'User';
+                fullNameSpan.textContent = user.fullName || 'User';
 
-                // Update chat badge with unread messages count
-                // For demo purposes, this value is hardcoded. Replace it with actual logic.
-                const chatBadge = document.getElementById('chatBadge');
-                chatBadge.textContent = '3'; // Example count, update this with real data
+                // Fetch chat badge count from the backend
+                const chatResponse = await fetch('/chat/unread-count', {
+                    headers: {
+                        'Authorization': `Bearer ${token}`
+                    }
+                });
+
+                if (chatResponse.ok) {
+                    const chatData = await chatResponse.json();
+                    document.getElementById('chatBadge').textContent = chatData.unreadCount || '0';
+                } else {
+                    console.error('Failed to fetch chat notifications');
+                }
 
             } catch (error) {
                 console.error('Error loading dashboard:', error.message);

@@ -13,17 +13,15 @@ const app = express();
 const port = 3000;
 const dbPath = path.join(__dirname, 'main.db');
 const jwtSecret = process.env.JWT_SECRET || 'your_jwt_secret'; // Use environment variable for JWT secret
-
+ 
 let db; // Database instance
-
-// Initialize database
 async function initializeDatabase() {
     try {
         db = await open({
             filename: dbPath,
             driver: sqlite3.Database
         });
-
+ 
         // Execute schema creation commands
         await db.exec(`
         CREATE TABLE IF NOT EXISTS users (
@@ -77,7 +75,7 @@ async function initializeDatabase() {
                 FOREIGN KEY (userId) REFERENCES users (id)
             );
         `);
-
+ 
         console.log('Database initialized');
     } catch (error) {
         console.error('Failed to initialize the database', error);
@@ -85,9 +83,9 @@ async function initializeDatabase() {
     }
 }
 
-// Call initializeDatabase at the start
-initializeDatabase();
 
+initializeDatabase();
+ 
 app.use(express.static(path.join(__dirname, 'public')));
 app.use('/login', express.static(path.join(__dirname, 'public', 'login.html')));
 app.use('/signup', express.static(path.join(__dirname, 'public', 'signup.html')));
@@ -96,15 +94,7 @@ app.use('/dashboard/:id', express.static(path.join(__dirname, 'public', 'dashboa
 app.use(bodyParser.json());
 app.use(cors());
 app.use(express.json());
-
-app.get('/', (req, res) => {
-    res.sendFile(path.join(__dirname, 'public', 'dash.html'));
-});
-
-app.get('/chat.html', (req, res) => {
-    res.sendFile(path.join(__dirname, 'public', 'chat.html'));
-});
-
+ 
 const transporter = nodemailer.createTransport({
     service: 'Gmail',
     auth: {
@@ -112,20 +102,19 @@ const transporter = nodemailer.createTransport({
         pass: 'lwqz khjb nwzg cyoj'
     }
 });
-
 function authenticateToken(req, res, next) {
     const authHeader = req.headers['authorization'];
     const token = authHeader && authHeader.split(' ')[1];
-
+ 
     if (token == null) return res.sendStatus(401);
-
+ 
     jwt.verify(token, secret, (err, user) => {
         if (err) return res.sendStatus(403);
         req.user = user;
         next();
     });
 }
-
+// User signup
 app.post('/signup', async (req, res) => {
     const { fullName, Email, Password } = req.body;
  
@@ -172,20 +161,20 @@ app.post('/signup', async (req, res) => {
 // OTP verification
 app.post('/verify/otp', async (req, res) => {
     const { otp } = req.body;
-
+ 
     if (!otp) {
         return res.status(400).json({ error: 'OTP is required' });
     }
-
+ 
     try {
         const user = await db.get('SELECT * FROM users WHERE otp = ? AND otp_expiry > ? ', [otp, Date.now()]);
-
+ 
         if (!user) {
             return res.status(400).json({ error: 'Invalid or expired OTP' });
         }
-
+ 
         await db.run('UPDATE users SET verification = true WHERE id = ?', [user.id]);
-
+ 
         const token = jwt.sign({ id: user.id }, jwtSecret, { expiresIn: '1h' });
         res.json({ message: 'OTP verified successfully!', token });
     } catch (error) {
@@ -193,7 +182,7 @@ app.post('/verify/otp', async (req, res) => {
         res.status(500).json({ error: 'OTP verification failed' });
     }
 });
-
+ 
 // User login
 app.post('/login', async (req, res) => {
     const { Email, Password } = req.body;
@@ -237,11 +226,11 @@ app.post('/login', async (req, res) => {
         res.status(500).json({ error: 'Login failed' });
     }
 });
-
+ 
 // Serve verification page
-app.get('/verify/:userId', async (req, res) => {
-    const userId = parseInt(req.params.userId, 10);
-
+app.get('verify/${userId}', async (req, res) => {
+    const userId = parseInt(req.params.id, 10);
+ 
     try {
         res.sendFile(path.join(__dirname, 'public', 'verify.html'));
     } catch (error) {
@@ -249,81 +238,81 @@ app.get('/verify/:userId', async (req, res) => {
         res.status(500).json({ error: 'Failed to serve verification page' });
     }
 });
-
+ 
 app.post('/reset/password', async (req, res) => {
     const { email, newPassword } = req.body;
-
+ 
     if (!email || !newPassword) {
         return res.status(400).json({ error: 'Email and new password are required' });
     }
-
+ 
     try {
         const hashedPassword = await bcrypt.hash(newPassword, 10);
-        const result = await db.run('UPDATE users SET password = ?, resetToken = NULL, resetTokenExpiry = NULL WHERE email = ?', [hashedPassword, email]);
-
+        const result = await db.run('UPDATE users SET Password = ?, resetToken = NULL, resetTokenExpiry = NULL WHERE Email = ?', [hashedPassword, email]);
+ 
         if (result.changes === 0) {
             return res.status(404).json({ error: 'User not found' });
         }
-
+ 
         res.status(200).json({ message: 'Password has been reset successfully.' });
     } catch (error) {
         console.error('Password reset failed', error);
         res.status(500).json({ error: 'Password reset failed' });
     }
 });
-
+ 
+ 
 // Handle password reset confirmation
 app.post('/confirm/reset/password', async (req, res) => {
     const { token, newPassword } = req.body;
-
+ 
     if (!token || !newPassword) {
         return res.status(400).json({ error: 'Token and new password are required' });
     }
-
+ 
     try {
         const user = await db.get('SELECT * FROM users WHERE resetToken = ? AND resetTokenExpiry > ?', [token, Date.now()]);
-
+ 
         if (!user) {
             return res.status(400).json({ error: 'Invalid or expired token' });
         }
-
+ 
         const hashedPassword = await bcrypt.hash(newPassword, 10);
-
-        await db.run('UPDATE users SET password = ?, resetToken = NULL, resetTokenExpiry = NULL WHERE id = ?', [
+ 
+        await db.run('UPDATE users SET Password = ?, resetToken = NULL, resetTokenExpiry = NULL WHERE id = ?', [
             hashedPassword,
             user.id
         ]);
-
+ 
         res.status(200).json({ message: 'Password has been reset successfully.' });
     } catch (error) {
         console.error('Password reset confirmation failed', error);
         res.status(500).json({ error: 'Password reset confirmation failed' });
     }
 });
-
 app.post('/send/otp', async (req, res) => {
     const { email } = req.body;
-
+ 
     // Validate input
     if (!email) {
         return res.status(400).json({ error: 'Email is required' });
     }
-
+ 
     try {
         // Check if the user exists
-        const user = await db.get('SELECT * FROM users WHERE email = ?', [email]);
-
+        const user = await db.get('SELECT * FROM users WHERE Email = ?', [email]);
+ 
         if (!user) {
             return res.status(404).json({ error: 'User not found' });
         }
-
+ 
         // Generate OTP and expiry
         const otp = crypto.randomInt(100000, 999999);
         const otpExpiry = Date.now() + 15 * 60 * 1000; // 15 minutes expiry
-
+ 
         // Update OTP and expiry in the database
-        await db.run('UPDATE users SET otp = ?, otp_expiry = ? WHERE email = ?', [otp, otpExpiry, email]);
-
+        await db.run('UPDATE users SET otp = ?, otp_expiry = ? WHERE Email = ?', [otp, otpExpiry, email]);
+ 
         // Send OTP email
         await transporter.sendMail({
             from: 'no-reply@gyan.com',
@@ -331,45 +320,44 @@ app.post('/send/otp', async (req, res) => {
             subject: 'Your OTP Code',
             text: `Your OTP code is ${otp}`
         });
-
+ 
         res.status(200).json({ message: 'OTP sent successfully' });
     } catch (error) {
         console.error('Failed to send OTP', error);
         res.status(500).json({ error: 'Failed to send OTP' });
     }
 });
-
 app.post('/resend/otp', async (req, res) => {
     const { userId, email } = req.body;
-
+ 
     if (!userId && !email) {
         return res.status(400).json({ error: 'Either User ID or Email is required' });
     }
-
+ 
     try {
         let user;
         if (email) {
             // Retrieve user based on email
-            user = await db.get('SELECT id FROM users WHERE email = ?', [email]);
+            user = await db.get('SELECT id FROM users WHERE Email = ?', [email]);
         } else if (userId) {
             // Retrieve user based on userId
-            user = await db.get('SELECT email FROM users WHERE id = ?', [userId]);
+            user = await db.get('SELECT Email FROM users WHERE id = ?', [userId]);
         }
-
+ 
         if (!user) {
             return res.status(404).json({ error: 'User not found' });
         }
-
-        const userEmail = user.email || email; // Determine email to use
+ 
+        const userEmail = user.Email || email; // Determine email to use
         const otp = crypto.randomInt(100000, 999999); // Generate new OTP
-
+ 
         // Update OTP and expiry in the database
-        await db.run('UPDATE users SET otp = ?, otp_expiry = ? WHERE email = ?', [
+        await db.run('UPDATE users SET otp = ?, otp_expiry = ? WHERE Email = ?', [
             otp,
             Date.now() + 15 * 60 * 1000, // OTP expires in 15 minutes
             userEmail
         ]);
-
+ 
         // Send OTP email
         await transporter.sendMail({
             from: 'no-reply@gyan.com',
@@ -377,47 +365,73 @@ app.post('/resend/otp', async (req, res) => {
             subject: 'Your New OTP Code',
             text: `Your new OTP code is ${otp}`
         });
+ 
         res.json({ success: 'OTP has been resent to your email' });
     } catch (error) {
         console.error('Failed to resend OTP:', error);
         res.status(500).json({ error: 'Failed to resend OTP' });
     }
 });
+// Create a new chat
+app.post('/chats', authenticateToken, async (req, res) => {
+    const { name, isGroup } = req.body;
 
-app.get('/protected', authenticateToken, (req, res) => {
-    res.json(req.user);
-});
-
-
-app.get('/chats', authenticateToken, async (req, res) => {
-    const userId = req.user.id;
+    if (!name) {
+        return res.status(400).json({ error: 'Chat name is required' });
+    }
 
     try {
-        const chats = await db.all(`
-            SELECT c.*, u.fullName AS createdByName
-            FROM chats c
-            LEFT JOIN users u ON c.createdBy = u.id
-            JOIN chatParticipants cp ON c.id = cp.chatId
-            WHERE cp.userId = ?
-        `, [userId]);
+        const result = await db.run('INSERT INTO chats (name, isGroup, createdAt, updatedAt, createdBy) VALUES (?, ?, ?, ?, ?)', [
+            name,
+            isGroup,
+            Date.now(),
+            Date.now(),
+            req.user.id
+        ]);
 
-        res.json(chats);
+        const chatId = result.lastID;
+
+        // Add the creator to the chat participants
+        await db.run('INSERT INTO chatParticipants (chatId, userId, joinedAt) VALUES (?, ?, ?)', [
+            chatId,
+            req.user.id,
+            Date.now()
+        ]);
+
+        res.json({ chatId, name, isGroup });
     } catch (error) {
-        console.error('Failed to fetch chats', error);
-        res.status(500).json({ error: 'Failed to fetch chats' });
+        console.error('Failed to create chat', error);
+        res.status(500).json({ error: 'Failed to create chat' });
     }
 });
-app.get('/chats/:chatId/messages', authenticateToken, async (req, res) => {
-    const chatId = parseInt(req.params.chatId, 10);
+// Send a message
+app.post('/messages', authenticateToken, async (req, res) => {
+    const { chatId, message } = req.body;
+
+    if (!chatId || !message) {
+        return res.status(400).json({ error: 'Chat ID and message are required' });
+    }
 
     try {
-        const messages = await db.all(`
-            SELECT m.*, u.fullName
-            FROM messages m
-            JOIN users u ON m.userId = u.id
-            WHERE m.chatId = ?
-            ORDER BY m.timestamp ASC
-        `, [chatId]);
+        const result = await db.run('INSERT INTO messages (chatId, userId, message, timestamp) VALUES (?, ?, ?, ?)', [
+            chatId,
+            req.user.id,
+            message,
+            Date.now()
+        ]);
+
+        res.json({ messageId: result.lastID, chatId, message });
+    } catch (error) {
+        console.error('Failed to send message', error);
+        res.status(500).json({ error: 'Failed to send message' });
+    }
+});
+// Fetch messages for a chat
+app.get('/messages/:chatId', authenticateToken, async (req, res) => {
+    const { chatId } = req.params;
+
+    try {
+        const messages = await db.all('SELECT m.id, m.message, m.timestamp, u.fullName FROM messages m JOIN users u ON m.userId = u.id WHERE m.chatId = ? ORDER BY m.timestamp ASC', [chatId]);
 
         res.json(messages);
     } catch (error) {
@@ -425,80 +439,55 @@ app.get('/chats/:chatId/messages', authenticateToken, async (req, res) => {
         res.status(500).json({ error: 'Failed to fetch messages' });
     }
 });
-app.post('/chats/:chatId/messages', authenticateToken, async (req, res) => {
-    const chatId = parseInt(req.params.chatId, 10);
-    const { message } = req.body;
-    const userId = req.user.id;
-
-    if (!message) {
-        return res.status(400).json({ error: 'Message content is required' });
-    }
-
+// Get list of chats for the authenticated user
+app.get('/chats', authenticateToken, async (req, res) => {
     try {
-        await db.run(`
-            INSERT INTO messages (chatId, userId, message, timestamp)
-            VALUES (?, ?, ?, ?)
-        `, [chatId, userId, message, Date.now()]);
+        const chats = await db.all('SELECT c.id, c.name, c.isGroup FROM chats c JOIN chatParticipants cp ON c.id = cp.chatId WHERE cp.userId = ?', [req.user.id]);
 
-        res.status(201).json({ message: 'Message sent' });
+        res.json(chats);
     } catch (error) {
-        console.error('Failed to send message', error);
-        res.status(500).json({ error: 'Failed to send message' });
-    }
-});
-app.post('/chats', authenticateToken, async (req, res) => {
-    const { name, isGroup } = req.body;
-    const userId = req.user.id;
-
-    if (!name) {
-        return res.status(400).json({ error: 'Chat name is required' });
-    }
-
-    try {
-        const result = await db.run(`
-            INSERT INTO chats (name, isGroup, createdAt, updatedAt, createdBy)
-            VALUES (?, ?, ?, ?, ?)
-        `, [name, isGroup, Date.now(), Date.now(), userId]);
-
-        const chatId = result.lastID;
-
-        // Add the creator as a participant
-        await db.run(`
-            INSERT INTO chatParticipants (chatId, userId, joinedAt)
-            VALUES (?, ?, ?)
-        `, [chatId, userId, Date.now()]);
-
-        res.status(201).json({ chatId });
-    } catch (error) {
-        console.error('Failed to create chat', error);
-        res.status(500).json({ error: 'Failed to create chat' });
-    }
-});
-app.post('/chats/:chatId/participants', authenticateToken, async (req, res) => {
-    const chatId = parseInt(req.params.chatId, 10);
-    const { userIds } = req.body; // Expecting an array of user IDs
-
-    if (!Array.isArray(userIds) || userIds.length === 0) {
-        return res.status(400).json({ error: 'User IDs are required' });
-    }
-
-    try {
-        const insertPromises = userIds.map(userId => db.run(`
-            INSERT INTO chatParticipants (chatId, userId, joinedAt)
-            VALUES (?, ?, ?)
-            ON CONFLICT(chatId, userId) DO NOTHING
-        `, [chatId, userId, Date.now()]));
-
-        await Promise.all(insertPromises);
-
-        res.json({ message: 'Participants added' });
-    } catch (error) {
-        console.error('Failed to add participants', error);
-        res.status(500).json({ error: 'Failed to add participants' });
+        console.error('Failed to get chats', error);
+        res.status(500).json({ error: 'Failed to get chats' });
     }
 });
 
+
+// Define the search function outside of the route handler
+async function searchUsersByFullName(query) {
+    try {
+        // Use a prepared statement to prevent SQL injection
+        const result = await db.all('SELECT id, fullName FROM users WHERE fullName LIKE ?', [`%${query}%`]);
+        return result;
+    } catch (error) {
+        console.error('Error executing search query:', error);
+        throw error;
+    }
+}
+
+app.get('/api/search', async (req, res) => {
+    const query = req.query.query;
+
+    if (!query) {
+        return res.status(400).send('Query parameter is required.');
+    }
+
+    try {
+        const users = await searchUsersByFullName(query); // Call the defined function
+        res.json(users);
+    } catch (error) {
+        console.error('Error searching users:', error);
+        res.status(500).send('Internal Server Error');
+    }
+});
+
+
+app.get('/protected', authenticateToken, (req, res) => {
+    res.json(req.user);
+});
 // Start the server
 app.listen(port, () => {
     console.log(`Server is running on http://localhost:${port}`);
 });
+ 
+ 
+ 
