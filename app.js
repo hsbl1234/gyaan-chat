@@ -198,11 +198,6 @@ app.post('/login', async (req, res) => {
             return res.status(401).json({ error: 'Invalid email or password' });
         }
  
-        const isPasswordMatch = await bcrypt.compare(Password, user.Password);
-        if (!isPasswordMatch) {
-            return res.status(401).json({ error: 'Invalid email or password' });
-        }
- 
         if (!user.verification) {
             const otp = crypto.randomInt(100000, 999999);
             const otpExpiry = Date.now() + 15 * 60 * 1000; // OTP expires in 15 minutes
