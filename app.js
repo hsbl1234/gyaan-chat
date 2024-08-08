@@ -37,25 +37,23 @@ async function initializeDatabase() {
         );
         
             
-            CREATE TABLE IF NOT EXISTS chats (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                name TEXT,
-                isGroup BOOLEAN DEFAULT FALSE,
-                createdAt INTEGER,
-                updatedAt INTEGER,
-                createdBy INTEGER,
-                FOREIGN KEY (createdBy) REFERENCES users (id)
-            );
-            
-            CREATE TABLE IF NOT EXISTS messages (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                chatId INTEGER,
-                userId INTEGER,
-                message TEXT,
-                timestamp INTEGER,
-                FOREIGN KEY (chatId) REFERENCES chats (id),
-                FOREIGN KEY (userId) REFERENCES users (id)
-            );
+        CREATE TABLE IF NOT EXISTS chats (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            name TEXT
+        );
+        
+        CREATE TABLE IF NOT EXISTS messages (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            chatId INTEGER,
+            fromUserId INTEGER,
+            toUserId INTEGER,
+            message TEXT,
+            timestamp INTEGER,
+            FOREIGN KEY (chatId) REFERENCES chats (id),
+            FOREIGN KEY (fromUserId) REFERENCES users (id),
+            FOREIGN KEY (toUserId) REFERENCES users (id)
+        );
+        
             
             CREATE TABLE IF NOT EXISTS chatParticipants (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -367,114 +365,93 @@ app.post('/resend/otp', async (req, res) => {
         res.status(500).json({ error: 'Failed to resend OTP' });
     }
 });
-// Create a new chat
-app.post('/chats', authenticateToken, async (req, res) => {
-    const { name, isGroup } = req.body;
-
-    if (!name) {
-        return res.status(400).json({ error: 'Chat name is required' });
+// Endpoint to get all users (for the chat sidebar)
+app.get('/api/users', authenticateToken, async (req, res) => {
+    try {
+        const users = await db.all('SELECT id, fullName FROM users');
+        res.json(users);
+    } catch (error) {
+        console.error('Failed to fetch users', error);
+        res.status(500).json({ error: 'Failed to fetch users' });
     }
+});
+// Simplified query to check if a chat exists
+app.post('/api/chat/createOrGet', authenticateToken, async (req, res) => {
+    const { otherUserId } = req.body;
+    const currentUserId = req.user.id;
 
     try {
-        const result = await db.run('INSERT INTO chats (name, isGroup, createdAt, updatedAt, createdBy) VALUES (?, ?, ?, ?, ?)', [
-            name,
-            isGroup,
-            Date.now(),
-            Date.now(),
-            req.user.id
-        ]);
+        // Simplified version to check if the chat exists
+        const chat = await db.get(`
+            SELECT id FROM chats
+            WHERE id IN (
+                SELECT chatId FROM messages
+                WHERE (fromUserId = ? AND toUserId = ?) OR (fromUserId = ? AND toUserId = ?)
+                GROUP BY chatId
+                HAVING COUNT(DISTINCT chatId) > 0
+            )
+        `, [currentUserId, otherUserId, otherUserId, currentUserId]);
+
+        if (chat) {
+            // Chat exists, return the chatId
+            return res.json({ chatId: chat.id });
+        }
+
+        // Create a new chat
+        const result = await db.run(`
+            INSERT INTO chats (name) VALUES (?)
+        `, ['New Chat']);
 
         const chatId = result.lastID;
 
-        // Add the creator to the chat participants
-        await db.run('INSERT INTO chatParticipants (chatId, userId, joinedAt) VALUES (?, ?, ?)', [
-            chatId,
-            req.user.id,
-            Date.now()
-        ]);
+        // Create messages table entries for both users
+        await db.run(`
+            INSERT INTO messages (chatId, fromUserId, toUserId, message, timestamp)
+            VALUES (?, ?, ?, '', ?), (?, ?, ?, '', ?)
+        `, [chatId, currentUserId, otherUserId, Date.now(), chatId, otherUserId, currentUserId, Date.now()]);
 
-        res.json({ chatId, name, isGroup });
+        res.json({ chatId });
     } catch (error) {
-        console.error('Failed to create chat', error);
-        res.status(500).json({ error: 'Failed to create chat' });
+        console.error('Failed to create or get chat:', error);
+        res.status(500).json({ error: 'Failed to create or get chat' });
     }
 });
-// Send a message
-app.post('/messages', authenticateToken, async (req, res) => {
-    const { chatId, message } = req.body;
 
-    if (!chatId || !message) {
-        return res.status(400).json({ error: 'Chat ID and message are required' });
-    }
 
-    try {
-        const result = await db.run('INSERT INTO messages (chatId, userId, message, timestamp) VALUES (?, ?, ?, ?)', [
-            chatId,
-            req.user.id,
-            message,
-            Date.now()
-        ]);
-
-        res.json({ messageId: result.lastID, chatId, message });
-    } catch (error) {
-        console.error('Failed to send message', error);
-        res.status(500).json({ error: 'Failed to send message' });
-    }
-});
-// Fetch messages for a chat
-app.get('/messages/:chatId', authenticateToken, async (req, res) => {
+app.get('/api/chat/:chatId', authenticateToken, async (req, res) => {
     const { chatId } = req.params;
 
     try {
-        const messages = await db.all('SELECT m.id, m.message, m.timestamp, u.fullName FROM messages m JOIN users u ON m.userId = u.id WHERE m.chatId = ? ORDER BY m.timestamp ASC', [chatId]);
+        const messages = await db.all(`
+            SELECT * FROM messages
+            WHERE chatId = ?
+            ORDER BY timestamp ASC
+        `, [chatId]);
 
-        res.json(messages);
+        res.json({ messages });
     } catch (error) {
-        console.error('Failed to fetch messages', error);
-        res.status(500).json({ error: 'Failed to fetch messages' });
-    }
-});
-// Get list of chats for the authenticated user
-app.get('/chats', authenticateToken, async (req, res) => {
-    try {
-        const chats = await db.all('SELECT c.id, c.name, c.isGroup FROM chats c JOIN chatParticipants cp ON c.id = cp.chatId WHERE cp.userId = ?', [req.user.id]);
-
-        res.json(chats);
-    } catch (error) {
-        console.error('Failed to get chats', error);
-        res.status(500).json({ error: 'Failed to get chats' });
+        console.error('Failed to fetch chat messages:', error);
+        res.status(500).json({ error: 'Failed to fetch chat messages' });
     }
 });
 
-
-// Define the search function outside of the route handler
-async function searchUsersByFullName(query) {
-    try {
-        // Use a prepared statement to prevent SQL injection
-        const result = await db.all('SELECT id, fullName FROM users WHERE fullName LIKE ?', [`%${query}%`]);
-        return result;
-    } catch (error) {
-        console.error('Error executing search query:', error);
-        throw error;
-    }
-}
-
-app.get('/api/search', async (req, res) => {
-    const query = req.query.query;
-
-    if (!query) {
-        return res.status(400).send('Query parameter is required.');
-    }
+app.post('/api/chat/:chatId/send', authenticateToken, async (req, res) => {
+    const { chatId } = req.params;
+    const { text, toUserId } = req.body; // Assume `toUserId` is passed in the request body
+    const fromUserId = req.user.id; // The authenticated user ID
 
     try {
-        const users = await searchUsersByFullName(query); // Call the defined function
-        res.json(users);
+        await db.run(`
+            INSERT INTO messages (chatId, fromUserId, toUserId, message, timestamp)
+            VALUES (?, ?, ?, ?, ?)
+        `, [chatId, fromUserId, toUserId, text, Date.now()]);
+
+        res.json({ success: true });
     } catch (error) {
-        console.error('Error searching users:', error);
-        res.status(500).send('Internal Server Error');
+        console.error('Failed to send message:', error);
+        res.status(500).json({ error: 'Failed to send message' });
     }
 });
-
 
 app.get('/protected', authenticateToken, (req, res) => {
     res.json(req.user);
