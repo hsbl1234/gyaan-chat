@@ -365,6 +365,22 @@ app.post('/resend/otp', async (req, res) => {
         res.status(500).json({ error: 'Failed to resend OTP' });
     }
 });
+app.get('/api/users/:id', authenticateToken, async (req, res) => {
+    const { id } = req.params;
+
+    try {
+        const user = await db.get('SELECT id, fullName FROM users WHERE id = ?', [id]);
+        if (user) {
+            res.json(user);
+        } else {
+            res.status(404).json({ error: 'User not found' });
+        }
+    } catch (error) {
+        console.error('Failed to fetch user:', error);
+        res.status(500).json({ error: 'Failed to fetch user' });
+    }
+});
+
 // Endpoint to get all users (for the chat sidebar)
 app.get('/api/users', authenticateToken, async (req, res) => {
     try {

@@ -152,35 +152,47 @@
         }
 
         .message {
-            padding: 10px 20px;
-            margin: 10px;
-            border-radius: 15px;
-            max-width: 75%;
-            position: relative;
-        }
+    padding: 10px 20px;
+    margin: 10px 0;
+    border-radius: 15px;
+    max-width: 75%;
+    background-color: #e9ecef; /* Light grey background for messages */
+    color: #333;
+    align-self: flex-start; /* Align all messages to the left */
+    position: relative;
+}
 
-        .message .timestamp {
-            font-size: 0.75rem;
-            color: #6c757d;
-            margin-top: 5px;
-        }
+.message.sent {
+    background-color: #007bff;
+    color: white;
+    align-self: flex-start; /* Ensure all messages are aligned to the left */
+    margin-left: 0; /* No additional margin on the left side */
+}
 
-        .message .sender-name {
-            font-size: 0.85rem;
-            color: #f8f9fa;
-        }
+.message.received {
+    background-color: #8a2be2;
+    color: white;
+    align-self: flex-start; /* Ensure all messages are aligned to the left */
+    margin-right: 0; /* No additional margin on the right side */
+}
 
-        .message.sent {
-            background-color: #007bff;
-            color: white;
-            align-self: flex-end;
-        }
+.timestamp {
+    font-size: 0.75rem;
+    color: #6c757d;
+    margin-top: 5px;
+}
 
-        .message.received {
-            background-color: #8a2be2;
-            color: white;
-            align-self: flex-start;
-        }
+
+
+        
+        .sender-name {
+    font-size: 0.85rem;
+    color: #007bff; /* or a color that fits your design */
+    font-weight: bold;
+}
+ 
+
+
 
         .message-input {
             display: flex;
@@ -240,7 +252,7 @@
                 <img src="/path/to/profile/picture.jpg" alt="Profile Picture">
                 <div class="profile-info">
                     <h5 id="chatName">Chat Name</h5>
-                    <p id="userName">Full Name</p>
+                  
                 </div>
             </div>
         </div>
@@ -290,7 +302,25 @@
                 document.getElementById('alertContainer').appendChild(alertDiv);
                 setTimeout(() => alertDiv.remove(), 5000);
             }
+            async function fetchUserDetails(userId) {
+    try {
+        const response = await fetch(`/api/users/${userId}`, {
+            headers: {
+                'Authorization': `Bearer ${token}`
+            }
+        });
 
+        if (!response.ok) {
+            throw new Error(`Failed to fetch user details for userId ${userId}`);
+        }
+
+        return await response.json();
+    } catch (error) {
+        console.error(error.message);
+        return null;
+    }
+}
+ 
             async function fetchUsers() {
                 try {
                     const response = await fetch('/api/users', {
@@ -344,47 +374,62 @@
             });
 
             async function fetchChatMessages() {
-                if (chatId) {
-                    try {
-                        const response = await fetch(`/api/chat/${chatId}`, {
-                            headers: {
-                                'Authorization': `Bearer ${token}`
-                            }
-                        });
-
-                        if (!response.ok) {
-                            throw new Error('Failed to fetch chat messages.');
-                        }
-
-                        const chatData = await response.json();
-                        chatName.textContent = chatData.name;
-                        userName.textContent = chatData.fullName; // Update fullName
-                        if (chatData.messages.length > 0) {
-                            placeholder.style.display = 'none';
-                            chatArea.innerHTML = chatData.messages.map(message => {
-                                const isSent = message.userId === parseInt(token, 10);
-                                return `
-                                    <div class="message ${isSent ? 'sent' : 'received'}">
-                                        <div class="sender-name">${isSent ? 'You' : message.senderName}</div>
-                                        <div>${message.message}</div>
-                                        <div class="timestamp">${new Date(message.timestamp).toLocaleTimeString()}</div>
-                                    </div>
-                                `;
-                            }).join('');
-                            chatArea.scrollTop = chatArea.scrollHeight;
-                        } else {
-                            placeholder.style.display = 'flex';
-                            chatArea.innerHTML = '';
-                        }
-                    } catch (error) {
-                        console.error('Error loading chat messages:', error.message);
-                        showAlert('Error loading chat messages. Please try again.');
-                    }
-                } else {
-                    placeholder.style.display = 'flex';
-                    chatArea.innerHTML = '';
+    if (chatId) {
+        try {
+            const response = await fetch(`/api/chat/${chatId}`, {
+                headers: {
+                    'Authorization': `Bearer ${token}`
                 }
+            });
+
+            if (!response.ok) {
+                throw new Error('Failed to fetch chat messages.');
             }
+
+            const chatData = await response.json();
+            const messages = chatData.messages;
+
+            // Determine unique user IDs for fetching user details
+            const userIds = new Set(messages.map(msg => msg.fromUserId).concat(messages.map(msg => msg.toUserId)));
+            const userDetailsPromises = Array.from(userIds).map(id =>
+                fetch(`/api/users/${id}`, { headers: { 'Authorization': `Bearer ${token}` } })
+                    .then(res => res.json())
+                    .catch(() => ({ id, fullName: 'Unknown User' }))
+            );
+
+            const userDetails = await Promise.all(userDetailsPromises);
+            const userMap = new Map(userDetails.map(user => [user.id, user.fullName]));
+
+            // Find the recipient user
+            const recipientId = messages[0].toUserId; // Assuming all messages in this chat are between the same users
+            const recipientName = userMap.get(recipientId) || 'Unknown User';
+            chatName.textContent = recipientName;
+
+            // Render chat messages
+            chatArea.innerHTML = messages.map(message => {
+                const senderName = userMap.get(message.fromUserId) || 'Unknown User';
+                return `
+                    <div class="message ${message.fromUserId === parseInt(token, 10) ? 'sent' : 'received'}">
+                        <div class="sender-name">${senderName}</div>
+                        <div>${message.message}</div>
+                        <div class="timestamp">${new Date(message.timestamp).toLocaleTimeString()}</div>
+                    </div>
+                `;
+            }).join('');
+            chatArea.scrollTop = chatArea.scrollHeight;
+
+        } catch (error) {
+            console.error('Error loading chat messages:', error.message);
+            showAlert('Error loading chat messages. Please try again.');
+        }
+    } else {
+        placeholder.style.display = 'flex';
+        chatArea.innerHTML = '';
+    }
+}
+
+
+
 
             sendButton.addEventListener('click', async () => {
                 const messageText = messageInput.value.trim();
