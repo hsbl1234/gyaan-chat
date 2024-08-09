@@ -147,7 +147,6 @@ app.post('/signup', async (req, res) => {
             subject: 'Your OTP Code',
             text: `Your OTP code is ${otp}`
         });
- 
         // Send userId in the response for redirection
         res.json({ userId });
     } catch (error) {
@@ -155,7 +154,6 @@ app.post('/signup', async (req, res) => {
         res.status(500).json({ error: 'Signup failed' });
     }
 });
- 
 // OTP verification
 app.post('/verify/otp', async (req, res) => {
     const { otp } = req.body;
@@ -180,7 +178,6 @@ app.post('/verify/otp', async (req, res) => {
         res.status(500).json({ error: 'OTP verification failed' });
     }
 });
- 
 // User login
 app.post('/login', async (req, res) => {
     const { Email, Password } = req.body;
@@ -219,7 +216,6 @@ app.post('/login', async (req, res) => {
         res.status(500).json({ error: 'Login failed' });
     }
 });
- 
 // Serve verification page
 app.get('verify/${userId}', async (req, res) => {
     const userId = parseInt(req.params.id, 10);
@@ -230,8 +226,7 @@ app.get('verify/${userId}', async (req, res) => {
         console.error('Failed to serve verification page', error);
         res.status(500).json({ error: 'Failed to serve verification page' });
     }
-});
- 
+}); 
 app.post('/reset/password', async (req, res) => {
     const { email, newPassword } = req.body;
  
@@ -253,8 +248,6 @@ app.post('/reset/password', async (req, res) => {
         res.status(500).json({ error: 'Password reset failed' });
     }
 });
- 
- 
 // Handle password reset confirmation
 app.post('/confirm/reset/password', async (req, res) => {
     const { token, newPassword } = req.body;
