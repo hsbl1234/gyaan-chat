@@ -472,6 +472,17 @@ app.post('/api/chat/:chatId/send', authenticateToken, async (req, res) => {
 app.get('/protected', authenticateToken, (req, res) => {
     res.json(req.user);
 });
+app.get('/protected', authenticateToken, async (req, res) => {
+    try {
+        const user = await db.get('SELECT id, fullName FROM users WHERE id = ?', [req.user.id]);
+        res.json(user);
+    } catch (error) {
+        console.error('Failed to get user details:', error);
+        res.status(500).json({ error: 'Failed to get user details' });
+    }
+});
+
+
 // Start the server
 app.listen(port, () => {
     console.log(`Server is running on http://localhost:${port}`);
