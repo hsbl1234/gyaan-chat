@@ -13,15 +13,26 @@ const app = express();
 const port = 3000;
 const dbPath = path.join(__dirname, 'main.db');
 const jwtSecret = process.env.JWT_SECRET || 'your_jwt_secret'; // Use environment variable for JWT secret
- 
+const multer = require('multer');
+
 let db; // Database instance
+const storage = multer.diskStorage({
+    destination: (req, file, cb) => {
+        cb(null, 'uploads/'); // Directory to save uploaded files
+    },
+    filename: (req, file, cb) => {
+        const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+        cb(null, uniqueSuffix + path.extname(file.originalname)); // Unique file name
+    }
+});
+const upload = multer({ storage: storage });
 async function initializeDatabase() {
     try {
         db = await open({
             filename: dbPath,
             driver: sqlite3.Database
         });
- 
+
         // Execute schema creation commands
         await db.exec(`
         CREATE TABLE IF NOT EXISTS users (
@@ -48,11 +59,13 @@ async function initializeDatabase() {
             fromUserId INTEGER,
             toUserId INTEGER,
             message TEXT,
+            attachment TEXT,  -- This column stores the filename of the uploaded attachment
             timestamp INTEGER,
             FOREIGN KEY (chatId) REFERENCES chats (id),
             FOREIGN KEY (fromUserId) REFERENCES users (id),
             FOREIGN KEY (toUserId) REFERENCES users (id)
         );
+        
         
             
             CREATE TABLE IF NOT EXISTS chatParticipants (
@@ -73,7 +86,7 @@ async function initializeDatabase() {
                 FOREIGN KEY (userId) REFERENCES users (id)
             );
         `);
- 
+
         console.log('Database initialized');
     } catch (error) {
         console.error('Failed to initialize the database', error);
@@ -83,16 +96,17 @@ async function initializeDatabase() {
 
 
 initializeDatabase();
- 
+
 app.use(express.static(path.join(__dirname, 'public')));
 app.use('/login', express.static(path.join(__dirname, 'public', 'login.html')));
 app.use('/signup', express.static(path.join(__dirname, 'public', 'signup.html')));
 app.use('/verify/otp', express.static(path.join(__dirname, 'public', 'verify.html')));
 app.use('/dashboard/:id', express.static(path.join(__dirname, 'public', 'dashboard.html')));
+app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 app.use(bodyParser.json());
 app.use(cors());
 app.use(express.json());
- 
+
 const transporter = nodemailer.createTransport({
     service: 'Gmail',
     auth: {
@@ -103,9 +117,9 @@ const transporter = nodemailer.createTransport({
 function authenticateToken(req, res, next) {
     const authHeader = req.headers['authorization'];
     const token = authHeader && authHeader.split(' ')[1];
- 
+
     if (token == null) return res.sendStatus(401);
- 
+
     jwt.verify(token, secret, (err, user) => {
         if (err) return res.sendStatus(403);
         req.user = user;
@@ -115,21 +129,21 @@ function authenticateToken(req, res, next) {
 // User signup
 app.post('/signup', async (req, res) => {
     const { fullName, Email, Password } = req.body;
- 
+
     if (!fullName || !Email || !Password) {
         return res.status(400).json({ error: 'Missing required fields' });
     }
- 
+
     try {
         const existingUser = await db.get('SELECT * FROM users WHERE Email = ?', [Email]);
- 
+
         if (existingUser) {
             return res.status(409).json({ error: 'User already exists' });
         }
- 
+
         const hashedPassword = await bcrypt.hash(Password, 10);
         const otp = crypto.randomInt(100000, 999999); // Generate 6-digit OTP
- 
+
         const result = await db.run('INSERT INTO users (fullName, Email, Password, otp, otp_expiry, verification) VALUES (?, ?, ?, ?, ?, ?)', [
             fullName,
             Email,
@@ -138,9 +152,9 @@ app.post('/signup', async (req, res) => {
             Date.now() + 15 * 60 * 1000, // OTP expires in 15 minutes
             false
         ]);
- 
+
         const userId = result.lastID;
- 
+
         await transporter.sendMail({
             from: 'no-reply@gyan.com',
             to: Email,
@@ -157,20 +171,20 @@ app.post('/signup', async (req, res) => {
 // OTP verification
 app.post('/verify/otp', async (req, res) => {
     const { otp } = req.body;
- 
+
     if (!otp) {
         return res.status(400).json({ error: 'OTP is required' });
     }
- 
+
     try {
         const user = await db.get('SELECT * FROM users WHERE otp = ? AND otp_expiry > ? ', [otp, Date.now()]);
- 
+
         if (!user) {
             return res.status(400).json({ error: 'Invalid or expired OTP' });
         }
- 
+
         await db.run('UPDATE users SET verification = true WHERE id = ?', [user.id]);
- 
+
         const token = jwt.sign({ id: user.id }, jwtSecret, { expiresIn: '1h' });
         res.json({ message: 'OTP verified successfully!', token });
     } catch (error) {
@@ -181,34 +195,34 @@ app.post('/verify/otp', async (req, res) => {
 // User login
 app.post('/login', async (req, res) => {
     const { Email, Password } = req.body;
- 
+
     if (!Email || !Password) {
         return res.status(400).json({ error: 'Email and Password are required' });
     }
- 
+
     try {
         const user = await db.get('SELECT * FROM users WHERE Email = ?', [Email]);
- 
+
         if (!user) {
             return res.status(401).json({ error: 'Invalid email or password' });
         }
- 
+
         if (!user.verification) {
             const otp = crypto.randomInt(100000, 999999);
             const otpExpiry = Date.now() + 15 * 60 * 1000; // OTP expires in 15 minutes
- 
+
             await db.run('UPDATE users SET otp = ?, otp_expiry = ?, verification = false WHERE id = ?', [otp, otpExpiry, user.id]);
- 
+
             await transporter.sendMail({
                 from: 'no-reply@gyan.com',
                 to: Email,
                 subject: 'Your OTP Code',
                 text: `Your new OTP code is ${otp}`
             });
- 
+
             return res.status(403).json({ error: 'Please verify your email before logging in. Check your email for a new OTP.', redirect: '/verify/signup' });
         }
- 
+
         const token = jwt.sign({ id: user.id }, jwtSecret, { expiresIn: '1h' });
         res.json({ user: { id: user.id, fullName: user.fullName }, token });
     } catch (error) {
@@ -219,29 +233,29 @@ app.post('/login', async (req, res) => {
 // Serve verification page
 app.get('verify/${userId}', async (req, res) => {
     const userId = parseInt(req.params.id, 10);
- 
+
     try {
         res.sendFile(path.join(__dirname, 'public', 'verify.html'));
     } catch (error) {
         console.error('Failed to serve verification page', error);
         res.status(500).json({ error: 'Failed to serve verification page' });
     }
-}); 
+});
 app.post('/reset/password', async (req, res) => {
     const { email, newPassword } = req.body;
- 
+
     if (!email || !newPassword) {
         return res.status(400).json({ error: 'Email and new password are required' });
     }
- 
+
     try {
         const hashedPassword = await bcrypt.hash(newPassword, 10);
         const result = await db.run('UPDATE users SET Password = ?, resetToken = NULL, resetTokenExpiry = NULL WHERE Email = ?', [hashedPassword, email]);
- 
+
         if (result.changes === 0) {
             return res.status(404).json({ error: 'User not found' });
         }
- 
+
         res.status(200).json({ message: 'Password has been reset successfully.' });
     } catch (error) {
         console.error('Password reset failed', error);
@@ -251,25 +265,25 @@ app.post('/reset/password', async (req, res) => {
 // Handle password reset confirmation
 app.post('/confirm/reset/password', async (req, res) => {
     const { token, newPassword } = req.body;
- 
+
     if (!token || !newPassword) {
         return res.status(400).json({ error: 'Token and new password are required' });
     }
- 
+
     try {
         const user = await db.get('SELECT * FROM users WHERE resetToken = ? AND resetTokenExpiry > ?', [token, Date.now()]);
- 
+
         if (!user) {
             return res.status(400).json({ error: 'Invalid or expired token' });
         }
- 
+
         const hashedPassword = await bcrypt.hash(newPassword, 10);
- 
+
         await db.run('UPDATE users SET Password = ?, resetToken = NULL, resetTokenExpiry = NULL WHERE id = ?', [
             hashedPassword,
             user.id
         ]);
- 
+
         res.status(200).json({ message: 'Password has been reset successfully.' });
     } catch (error) {
         console.error('Password reset confirmation failed', error);
@@ -278,27 +292,27 @@ app.post('/confirm/reset/password', async (req, res) => {
 });
 app.post('/send/otp', async (req, res) => {
     const { email } = req.body;
- 
+
     // Validate input
     if (!email) {
         return res.status(400).json({ error: 'Email is required' });
     }
- 
+
     try {
         // Check if the user exists
         const user = await db.get('SELECT * FROM users WHERE Email = ?', [email]);
- 
+
         if (!user) {
             return res.status(404).json({ error: 'User not found' });
         }
- 
+
         // Generate OTP and expiry
         const otp = crypto.randomInt(100000, 999999);
         const otpExpiry = Date.now() + 15 * 60 * 1000; // 15 minutes expiry
- 
+
         // Update OTP and expiry in the database
         await db.run('UPDATE users SET otp = ?, otp_expiry = ? WHERE Email = ?', [otp, otpExpiry, email]);
- 
+
         // Send OTP email
         await transporter.sendMail({
             from: 'no-reply@gyan.com',
@@ -306,7 +320,7 @@ app.post('/send/otp', async (req, res) => {
             subject: 'Your OTP Code',
             text: `Your OTP code is ${otp}`
         });
- 
+
         res.status(200).json({ message: 'OTP sent successfully' });
     } catch (error) {
         console.error('Failed to send OTP', error);
@@ -315,11 +329,11 @@ app.post('/send/otp', async (req, res) => {
 });
 app.post('/resend/otp', async (req, res) => {
     const { userId, email } = req.body;
- 
+
     if (!userId && !email) {
         return res.status(400).json({ error: 'Either User ID or Email is required' });
     }
- 
+
     try {
         let user;
         if (email) {
@@ -329,21 +343,21 @@ app.post('/resend/otp', async (req, res) => {
             // Retrieve user based on userId
             user = await db.get('SELECT Email FROM users WHERE id = ?', [userId]);
         }
- 
+
         if (!user) {
             return res.status(404).json({ error: 'User not found' });
         }
- 
+
         const userEmail = user.Email || email; // Determine email to use
         const otp = crypto.randomInt(100000, 999999); // Generate new OTP
- 
+
         // Update OTP and expiry in the database
         await db.run('UPDATE users SET otp = ?, otp_expiry = ? WHERE Email = ?', [
             otp,
             Date.now() + 15 * 60 * 1000, // OTP expires in 15 minutes
             userEmail
         ]);
- 
+
         // Send OTP email
         await transporter.sendMail({
             from: 'no-reply@gyan.com',
@@ -351,7 +365,7 @@ app.post('/resend/otp', async (req, res) => {
             subject: 'Your New OTP Code',
             text: `Your new OTP code is ${otp}`
         });
- 
+
         res.json({ success: 'OTP has been resent to your email' });
     } catch (error) {
         console.error('Failed to resend OTP:', error);
@@ -443,17 +457,17 @@ app.get('/api/chat/:chatId', authenticateToken, async (req, res) => {
         res.status(500).json({ error: 'Failed to fetch chat messages' });
     }
 });
-
-app.post('/api/chat/:chatId/send', authenticateToken, async (req, res) => {
+app.post('/api/chat/:chatId/send', authenticateToken, upload.single('attachment'), async (req, res) => {
     const { chatId } = req.params;
-    const { text, toUserId } = req.body; // Assume `toUserId` is passed in the request body
-    const fromUserId = req.user.id; // The authenticated user ID
+    const { text, toUserId } = req.body;
+    const fromUserId = req.user.id;
+    const attachment = req.file ? req.file.filename : null; // Get the uploaded file name
 
     try {
         await db.run(`
-            INSERT INTO messages (chatId, fromUserId, toUserId, message, timestamp)
-            VALUES (?, ?, ?, ?, ?)
-        `, [chatId, fromUserId, toUserId, text, Date.now()]);
+            INSERT INTO messages (chatId, fromUserId, toUserId, message, attachment, timestamp)
+            VALUES (?, ?, ?, ?, ?, ?)
+        `, [chatId, fromUserId, toUserId, text, attachment, Date.now()]);
 
         res.json({ success: true });
     } catch (error) {
@@ -498,6 +512,5 @@ app.get('/protected', authenticateToken, async (req, res) => {
 app.listen(port, () => {
     console.log(`Server is running on http://localhost:${port}`);
 });
- 
- 
- 
+
+
