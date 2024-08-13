@@ -461,6 +461,24 @@ app.post('/api/chat/:chatId/send', authenticateToken, async (req, res) => {
         res.status(500).json({ error: 'Failed to send message' });
     }
 });
+app.get('/api/search', authenticateToken, (req, res) => {
+    const searchTerm = req.query.q;
+
+    if (!searchTerm) {
+        return res.status(400).json({ error: 'No search term provided' });
+    }
+
+    const query = `SELECT id, fullName FROM users WHERE fullName LIKE ?`;
+    db.all(query, [`%${searchTerm}%`], (err, rows) => {
+        if (err) {
+            console.error(err.message);
+            return res.status(500).json({ error: 'Failed to search users' });
+        }
+
+        res.json(rows);
+    });
+});
+
 
 app.get('/protected', authenticateToken, (req, res) => {
     res.json(req.user);
