@@ -1,3 +1,4 @@
+require('dotenv').config()
 const express = require('express');
 const { open } = require('sqlite');
 const sqlite3 = require('sqlite3').verbose();
@@ -10,7 +11,7 @@ const crypto = require('crypto');
 const bodyParser = require('body-parser');
 const secret = 'your_jwt_secret';
 const app = express();
-const port = 3000;
+const port = process.env.PORT || 3000;
 const dbPath = path.join(__dirname, 'main.db');
 const jwtSecret = process.env.JWT_SECRET || 'your_jwt_secret'; // Use environment variable for JWT secret
 const multer = require('multer');
@@ -387,7 +388,6 @@ app.get('/api/users/:id', authenticateToken, async (req, res) => {
         res.status(500).json({ error: 'Failed to fetch user' });
     }
 });
-
 // Endpoint to get all users (for the chat sidebar)
 app.get('/api/users', authenticateToken, async (req, res) => {
     try {
@@ -439,8 +439,6 @@ app.post('/api/chat/createOrGet', authenticateToken, async (req, res) => {
         res.status(500).json({ error: 'Failed to create or get chat' });
     }
 });
-
-
 app.get('/api/chat/:chatId', authenticateToken, async (req, res) => {
     const { chatId } = req.params;
 
@@ -492,8 +490,6 @@ app.get('/api/search', authenticateToken, (req, res) => {
         res.json(rows);
     });
 });
-
-
 app.get('/protected', authenticateToken, (req, res) => {
     res.json(req.user);
 });
@@ -506,10 +502,8 @@ app.get('/protected', authenticateToken, async (req, res) => {
         res.status(500).json({ error: 'Failed to get user details' });
     }
 });
-
-
 // Start the server
-app.listen(port, () => {
+app.listen(port, '0.0.0.0', () => {
     console.log(`Server is running on http://localhost:${port}`);
 });
 

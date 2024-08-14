@@ -34,6 +34,11 @@
             text-align: center;
             margin-top: 10px;
         }
+        #passwordHelp {
+            font-size: 0.9em;
+            color: #6c757d;
+            margin-top: 5px;
+        }
     </style>
 </head>
 <body>
@@ -66,6 +71,9 @@
                 <div class="form-group">
                     <label for="newPassword">New Password</label>
                     <input type="password" class="form-control" id="newPassword" name="newPassword" required>
+                    <small id="passwordHelp" class="form-text text-muted">
+                        Your password must be at least 8 characters long, contain at least one uppercase letter, one lowercase letter, one number, and one special character.
+                    </small>
                 </div>
                 <div class="form-group">
                     <label for="confirmNewPassword">Confirm New Password</label>
@@ -187,53 +195,51 @@
         });
 
         document.getElementById('resendOtpBtn').addEventListener('click', async function() {
-    const email = localStorage.getItem('resetEmail');
-    const userId = localStorage.getItem('userId'); // Assuming you also store userId in localStorage
+            const email = localStorage.getItem('resetEmail');
+            const userId = localStorage.getItem('userId');
 
-    if (!email && !userId) {
-        document.getElementById('resetMessage').textContent = 'Email or User ID is required.';
-        document.getElementById('resetMessage').style.display = 'block';
-        document.getElementById('resetSuccessMessage').style.display = 'none';
-        return;
-    }
+            if (!email && !userId) {
+                document.getElementById('resetMessage').textContent = 'Email or User ID is required.';
+                document.getElementById('resetMessage').style.display = 'block';
+                document.getElementById('resetSuccessMessage').style.display = 'none';
+                return;
+            }
 
-    const payload = {};
-    if (email) payload.email = email;
-    if (userId) payload.userId = userId;
+            const payload = {};
+            if (email) payload.email = email;
+            if (userId) payload.userId = userId;
 
-    try {
-        const response = await fetch('/resend/otp', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify(payload)
+            try {
+                const response = await fetch('/resend/otp', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(payload)
+                });
+
+                if (!response.ok) {
+                    const errorData = await response.json();
+                    throw new Error(errorData.error || 'Failed to resend OTP');
+                }
+
+                document.getElementById('resetMessage').style.display = 'none';
+                document.getElementById('resetSuccessMessage').textContent = 'OTP resent successfully. Please check your email.';
+                document.getElementById('resetSuccessMessage').style.display = 'block';
+
+                startResendTimer();
+            } catch (error) {
+                document.getElementById('resetMessage').textContent = error.message;
+                document.getElementById('resetMessage').style.display = 'block';
+                document.getElementById('resetSuccessMessage').style.display = 'none';
+            }
         });
-
-        if (!response.ok) {
-            const errorData = await response.json();
-            throw new Error(errorData.error || 'Failed to resend OTP');
-        }
-
-        document.getElementById('resetMessage').style.display = 'none';
-        document.getElementById('resetSuccessMessage').textContent = 'OTP has been resent to your email.';
-        document.getElementById('resetSuccessMessage').style.display = 'block';
-
-        document.getElementById('resendOtpBtn').disabled = true;
-        startResendTimer();
-    } catch (error) {
-        document.getElementById('resetMessage').textContent = error.message;
-        document.getElementById('resetMessage').style.display = 'block';
-        document.getElementById('resetSuccessMessage').style.display = 'none';
-    }
-});
-
 
         document.getElementById('resetForm').addEventListener('submit', async function(event) {
             event.preventDefault();
 
-            const newPassword = document.getElementById('newPassword').value;
-            const confirmNewPassword = document.getElementById('confirmNewPassword').value;
+            const newPassword = document.getElementById('newPassword').value.trim();
+            const confirmNewPassword = document.getElementById('confirmNewPassword').value.trim();
 
             if (newPassword !== confirmNewPassword) {
                 document.getElementById('resetMessage').textContent = 'Passwords do not match.';
@@ -248,25 +254,21 @@
                     headers: {
                         'Content-Type': 'application/json'
                     },
-                    body: JSON.stringify({ email: localStorage.getItem('resetEmail'), newPassword })
+                    body: JSON.stringify({ newPassword })
                 });
 
                 if (!response.ok) {
                     const errorData = await response.json();
-                    throw new Error(errorData.error || 'Password reset failed');
+                    throw new Error(errorData.error || 'Failed to reset password');
                 }
 
-                document.getElementById('resetSuccessMessage').textContent = 'Password has been reset successfully.';
-                document.getElementById('resetSuccessMessage').style.display = 'block';
                 document.getElementById('resetMessage').style.display = 'none';
+                document.getElementById('resetSuccessMessage').textContent = 'Password reset successfully. You can now log in with your new password.';
+                document.getElementById('resetSuccessMessage').style.display = 'block';
 
-                // Clear email from localStorage
-                localStorage.removeItem('resetEmail');
-
-                // Redirect to login page after a short delay
                 setTimeout(() => {
                     window.location.href = '/login.html';
-                }, 1000); // 2 seconds delay for the success message to be visible
+                }, 3000);
             } catch (error) {
                 document.getElementById('resetMessage').textContent = error.message;
                 document.getElementById('resetMessage').style.display = 'block';

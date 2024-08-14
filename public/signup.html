@@ -34,6 +34,11 @@
         .text-center a:hover {
             text-decoration: underline;
         }
+        #passwordHelp {
+            font-size: 0.9em;
+            color: #6c757d;
+            margin-top: 5px;
+        }
     </style>
 </head>
 <body>
@@ -51,6 +56,9 @@
             <div class="form-group">
                 <label for="Password">Password</label>
                 <input type="password" class="form-control" id="Password" name="Password" required>
+                <small id="passwordHelp" class="form-text text-muted">
+                    Your password must be at least 8 characters long, contain at least one uppercase letter, one lowercase letter, one number, and one special character.
+                </small>
             </div>
             <div class="form-group">
                 <button type="submit" class="btn btn-primary btn-block">Sign Up</button>
@@ -79,8 +87,17 @@
             const email = document.getElementById('Email').value.trim();
             const password = document.getElementById('Password').value;
 
+            const passwordRequirements = /^(?=.*\d)(?=.*[a-z])(?=.*[A-Z])(?=.*[\W_]).{8,}$/;
+
             if (!fullName || !email || !password) {
                 document.getElementById('message').textContent = 'All fields are required.';
+                document.getElementById('message').style.display = 'block';
+                document.getElementById('successMessage').style.display = 'none';
+                return;
+            }
+
+            if (!passwordRequirements.test(password)) {
+                document.getElementById('message').textContent = 'Password does not meet the requirements.';
                 document.getElementById('message').style.display = 'block';
                 document.getElementById('successMessage').style.display = 'none';
                 return;

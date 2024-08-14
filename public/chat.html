@@ -420,8 +420,6 @@
         return null;
     }
 }
-
- 
             async function fetchUsers() {
                 try {
                     const response = await fetch('/api/users', {
@@ -570,10 +568,9 @@
                 }
             });
 
-            fetchUsers(); // Fetch and display all users
-            fetchChatMessages(); // Fetch messages if a chatId is present
-
-            messageInput.focus(); // Auto-focus the message input field
+            fetchUsers();
+            fetchChatMessages(); 
+            messageInput.focus(); 
         });
     </script>
 </body>
