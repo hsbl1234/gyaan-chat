@@ -108,13 +108,17 @@ app.use(bodyParser.json());
 app.use(cors());
 app.use(express.json());
 
+const nodemailer = require('nodemailer');
+require('dotenv').config(); // Load environment variables from .env file
+
 const transporter = nodemailer.createTransport({
     service: 'Gmail',
     auth: {
-        user: 'hsbl480085@gmail.com',
-        pass: 'lwqz khjb nwzg cyoj'
+        user: process.env.EMAIL_USER,
+        pass: process.env.EMAIL_PASS
     }
 });
+
 function authenticateToken(req, res, next) {
     const authHeader = req.headers['authorization'];
     const token = authHeader && authHeader.split(' ')[1];
