@@ -15,7 +15,7 @@
             overflow-x: hidden; /* Prevent horizontal scroll */
         }
         .sidebar {
-            background-color: #242424;
+            background-color: #fd0000;
             color: #ffffff;
             height: 100vh;
             position: fixed;
@@ -130,13 +130,9 @@
         <div class="welcome-message">
             <label for="fullName" class="form-label">Welcome, <span id="fullName"></span>!</label>
         </div>
-        <!-- Additional content goes here -->
     </div>
-
-    <!-- Bootstrap JS and dependencies -->
     <script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.11.6/dist/umd/popper.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.min.js"></script>
-
     <script>
         document.addEventListener('DOMContentLoaded', () => {
     const fullNameSpan = document.getElementById('fullName');
@@ -159,9 +155,6 @@
                 window.location.href = '/login.html';
                 return;
             }
-
-           
-
             document.getElementById('logoutButton').addEventListener('click', () => {
                 localStorage.removeItem('token');
                 localStorage.removeItem('fullName');

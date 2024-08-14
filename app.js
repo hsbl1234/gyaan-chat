@@ -15,6 +15,7 @@ const port = process.env.PORT || 3000;
 const dbPath = path.join(__dirname, 'main.db');
 const jwtSecret = process.env.JWT_SECRET || 'your_jwt_secret'; // Use environment variable for JWT secret
 const multer = require('multer');
+require('dotenv').config();
 
 let db; // Database instance
 const storage = multer.diskStorage({
@@ -108,8 +109,6 @@ app.use(bodyParser.json());
 app.use(cors());
 app.use(express.json());
 
-const nodemailer = require('nodemailer');
-require('dotenv').config(); // Load environment variables from .env file
 
 const transporter = nodemailer.createTransport({
     service: 'Gmail',
