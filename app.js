@@ -127,6 +127,11 @@ function authenticateToken(req, res, next) {
         next();
     });
 }
+
+app.get('/', (req, res) => {
+    res.redirect('/login')
+})
+
 // User signup
 app.post('/signup', async (req, res) => {
     const { fullName, Email, Password } = req.body;
