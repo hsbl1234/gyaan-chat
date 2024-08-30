@@ -17,17 +17,49 @@ const jwtSecret = process.env.JWT_SECRET || 'your_jwt_secret'; // Use environmen
 const multer = require('multer');
 require('dotenv').config();
 
-let db; // Database instance
+// Set storage engine for multer
 const storage = multer.diskStorage({
-    destination: (req, file, cb) => {
-        cb(null, 'uploads/'); // Directory to save uploaded files
-    },
+    destination: './uploads/', // Directory to save the uploaded files
     filename: (req, file, cb) => {
-        const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
-        cb(null, uniqueSuffix + path.extname(file.originalname)); // Unique file name
+        cb(null, `${Date.now()}-${file.originalname}`);
     }
 });
-const upload = multer({ storage: storage });
+
+const upload = multer({
+    storage,
+    limits: { fileSize: 10 * 1024 * 1024 }, // Limit file size to 10MB
+    fileFilter: (req, file, cb) => {
+        const fileTypes = /jpeg|jpg|png|gif/;
+        const extname = fileTypes.test(path.extname(file.originalname).toLowerCase());
+        const mimetype = fileTypes.test(file.mimetype);
+
+        if (extname && mimetype) {
+            return cb(null, true);
+        } else {
+            cb('Error: Images only!');
+        }
+    }
+});
+
+// Handle image uploads for chat messages
+app.post('/api/chat/:chatId/send', upload.single('attachment'), (req, res) => {
+    const { chatId } = req.params;
+    const { message } = req.body;
+    const file = req.file;
+
+    // You can store the message and file information in your database here.
+    // For this example, we're just returning the file path and message.
+    res.json({
+        chatId,
+        message,
+        attachment: file ? `/uploads/${file.filename}` : null,
+        timestamp: new Date(),
+    });
+});
+
+// Serve the uploaded files statically
+app.use('/uploads', express.static('uploads'));
+
 async function initializeDatabase() {
     try {
         db = await open({

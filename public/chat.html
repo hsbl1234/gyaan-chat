@@ -297,6 +297,68 @@
     <script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.11.6/dist/umd/popper.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.min.js"></script>
     <script>
+        attachmentInput.addEventListener('change', (event) => {
+    const file = event.target.files[0];
+    if (file) {
+        // Optional: display an image preview
+        if (file.type.startsWith('image/')) {
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                const previewImage = document.createElement('img');
+                previewImage.src = e.target.result;
+                previewImage.style.maxWidth = '200px';
+                previewImage.style.borderRadius = '8px';
+                chatArea.appendChild(previewImage);
+            };
+            reader.readAsDataURL(file);
+        }
+        console.log('Selected file:', file.name);
+    }
+});
+sendButton.addEventListener('click', async () => {
+    const messageText = messageInput.value.trim();
+    const file = attachmentInput.files[0];
+
+    if ((messageText.length > 0 || file) && chatId) {
+        const formData = new FormData();
+        formData.append('message', messageText);
+        if (file) {
+            formData.append('attachment', file);
+        }
+
+        try {
+            const response = await fetch(`/api/chat/${chatId}/send`, {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${token}`
+                },
+                body: formData
+            });
+
+            if (!response.ok) {
+                throw new Error('Failed to send message.');
+            }
+
+            const responseData = await response.json();
+            messageInput.value = '';
+            attachmentInput.value = ''; // Clear the file input
+
+            chatArea.innerHTML += `
+                <div class="message sent">
+                    <div class="sender-name">You</div>
+                    <div>${messageText}</div>
+                    ${file ? `<div><img src="${responseData.attachment}" alt="Attachment" style="max-width: 200px; border-radius: 8px;"></div>` : ''}
+                    <div class="timestamp">${new Date().toLocaleTimeString()}</div>
+                </div>
+            `;
+            chatArea.scrollTop = chatArea.scrollHeight;
+        } catch (error) {
+            console.error('Error sending message:', error.message);
+            showAlert('Error sending message. Please try again.');
+        }
+    }
+});
+
         document.addEventListener('DOMContentLoaded', async () => {
     // Other existing code...
 
@@ -503,18 +565,19 @@
             const recipientId = messages[0].toUserId; // Assuming all messages in this chat are between the same users
             const recipientName = userMap.get(recipientId) || 'Unknown User';
             chatName.textContent = recipientName;
+            
+        // Render chat messages, excluding the first two
+chatArea.innerHTML = messages.slice(2).map(message => {
+    const senderName = userMap.get(message.fromUserId) || 'Unknown User';
+    return `
+        <div class="message ${message.fromUserId === parseInt(token, 10) ? 'sent' : 'received'}">
+            <div class="sender-name">${senderName}</div>
+            <div>${message.message}</div>
+            <div class="timestamp">${new Date(message.timestamp).toLocaleTimeString()}</div>
+        </div>
+    `;
+}).join('');
 
-            // Render chat messages
-            chatArea.innerHTML = messages.map(message => {
-                const senderName = userMap.get(message.fromUserId) || 'Unknown User';
-                return `
-                    <div class="message ${message.fromUserId === parseInt(token, 10) ? 'sent' : 'received'}">
-                        <div class="sender-name">${senderName}</div>
-                        <div>${message.message}</div>
-                        <div class="timestamp">${new Date(message.timestamp).toLocaleTimeString()}</div>
-                    </div>
-                `;
-            }).join('');
             chatArea.scrollTop = chatArea.scrollHeight;
 
         } catch (error) {
