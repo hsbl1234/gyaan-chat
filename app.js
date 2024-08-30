@@ -9,7 +9,6 @@ const cors = require('cors');
 const nodemailer = require('nodemailer');
 const crypto = require('crypto');
 const bodyParser = require('body-parser');
-const secret = 'your_jwt_secret';
 const app = express();
 const port = process.env.PORT || 3000;
 const dbPath = path.join(__dirname, 'main.db');
@@ -156,7 +155,7 @@ function authenticateToken(req, res, next) {
 
     if (token == null) return res.sendStatus(401);
 
-    jwt.verify(token, secret, (err, user) => {
+    jwt.verify(token, jwtSecret, (err, user) => {
         if (err) return res.sendStatus(403);
         req.user = user;
         next();
