@@ -218,7 +218,7 @@
     margin-bottom: 20px; /* Adds space below the welcome message */
     color: #333; /* Text color */
 }
-
+ 
     .alert {
         position: fixed;
         top: 20px;
@@ -233,19 +233,19 @@
     padding: 10px 20px;
     margin-left: 5px; /* Adjust space between buttons */
 }
-
+ 
 #attachmentButton {
     background-color: #6c757d; /* Different color for the attachment button */
     display: flex;
     align-items: center;
     justify-content: center;
 }
-
+ 
 </style>    
 </head>
 <body>
     <div id="alertContainer"></div> <!-- Container for dynamic alerts -->
-
+ 
     <div class="sidebar">
         <a href="/dashboard.html" class="nav-item"><i class="fas fa-home"></i></a>
         <a href="/teams.html" class="nav-item"><i class="fas fa-user-friends"></i></a>
@@ -262,7 +262,7 @@
             <!-- Users list will be injected here -->
         </div>
     </div>
-
+ 
     <div class="main-content">
         <div class="header">
             <div class="profile">
@@ -273,12 +273,12 @@
                 </div>
             </div>
         </div>
-
+ 
         <div class="chat-area" id="chatArea">
             <div id="placeholder" class="placeholder">
             </div>
         </div>
-
+ 
         <div class="message-input">
             <input type="text" id="messageInput" placeholder="Type a message..." aria-label="Type a message">
             
@@ -292,83 +292,21 @@
         </div>
         
     </div>
-
+ 
     <!-- Bootstrap JS and dependencies -->
     <script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.11.6/dist/umd/popper.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.min.js"></script>
     <script>
-        attachmentInput.addEventListener('change', (event) => {
-    const file = event.target.files[0];
-    if (file) {
-        // Optional: display an image preview
-        if (file.type.startsWith('image/')) {
-            const reader = new FileReader();
-            reader.onload = function(e) {
-                const previewImage = document.createElement('img');
-                previewImage.src = e.target.result;
-                previewImage.style.maxWidth = '200px';
-                previewImage.style.borderRadius = '8px';
-                chatArea.appendChild(previewImage);
-            };
-            reader.readAsDataURL(file);
-        }
-        console.log('Selected file:', file.name);
-    }
-});
-sendButton.addEventListener('click', async () => {
-    const messageText = messageInput.value.trim();
-    const file = attachmentInput.files[0];
-
-    if ((messageText.length > 0 || file) && chatId) {
-        const formData = new FormData();
-        formData.append('message', messageText);
-        if (file) {
-            formData.append('attachment', file);
-        }
-
-        try {
-            const response = await fetch(`/api/chat/${chatId}/send`, {
-                method: 'POST',
-                headers: {
-                    'Authorization': `Bearer ${token}`
-                },
-                body: formData
-            });
-
-            if (!response.ok) {
-                throw new Error('Failed to send message.');
-            }
-
-            const responseData = await response.json();
-            messageInput.value = '';
-            attachmentInput.value = ''; // Clear the file input
-
-            chatArea.innerHTML += `
-                <div class="message sent">
-                    <div class="sender-name">You</div>
-                    <div>${messageText}</div>
-                    ${file ? `<div><img src="${responseData.attachment}" alt="Attachment" style="max-width: 200px; border-radius: 8px;"></div>` : ''}
-                    <div class="timestamp">${new Date().toLocaleTimeString()}</div>
-                </div>
-            `;
-            chatArea.scrollTop = chatArea.scrollHeight;
-        } catch (error) {
-            console.error('Error sending message:', error.message);
-            showAlert('Error sending message. Please try again.');
-        }
-    }
-});
-
         document.addEventListener('DOMContentLoaded', async () => {
     // Other existing code...
-
+ 
     const attachmentInput = document.getElementById('attachmentInput');
     const attachmentButton = document.getElementById('attachmentButton');
-
+ 
     attachmentButton.addEventListener('click', () => {
         attachmentInput.click(); // Trigger file selection
     });
-
+ 
     attachmentInput.addEventListener('change', (event) => {
         const file = event.target.files[0];
         if (file) {
@@ -376,18 +314,18 @@ sendButton.addEventListener('click', async () => {
             console.log('Selected file:', file.name);
         }
     });
-
+ 
     sendButton.addEventListener('click', async () => {
         const messageText = messageInput.value.trim();
         const file = attachmentInput.files[0];
-
+ 
         if ((messageText.length > 0 || file) && chatId) {
             const formData = new FormData();
             formData.append('message', messageText);
             if (file) {
                 formData.append('attachment', file);
             }
-
+ 
             try {
                 const response = await fetch(`/api/chat/${chatId}/send`, {
                     method: 'POST',
@@ -396,11 +334,11 @@ sendButton.addEventListener('click', async () => {
                     },
                     body: formData
                 });
-
+ 
                 if (!response.ok) {
                     throw new Error('Failed to send message.');
                 }
-
+ 
                 messageInput.value = '';
                 attachmentInput.value = ''; // Clear the file input
                 chatArea.innerHTML += `
@@ -418,10 +356,10 @@ sendButton.addEventListener('click', async () => {
             }
         }
     });
-
+ 
     // Other existing code...
 });
-
+ 
           document.addEventListener('DOMContentLoaded', () => {
     const fullNameSpan = document.getElementById('fullName');
  
@@ -446,13 +384,13 @@ sendButton.addEventListener('click', async () => {
             const messageInput = document.getElementById('messageInput');
             const chatId = new URLSearchParams(window.location.search).get('id');
             const placeholder = document.getElementById('placeholder');
-
+ 
             if (!token) {
                 alert('You must be logged in to view this page.');
                 window.location.href = '/login.html';
                 return;
             }
-
+ 
             async function showAlert(message) {
                 const alertDiv = document.createElement('div');
                 alertDiv.className = 'alert alert-warning alert-dismissible fade show';
@@ -471,11 +409,11 @@ sendButton.addEventListener('click', async () => {
                 'Authorization': `Bearer ${token}`
             }
         });
-
+ 
         if (!response.ok) {
             throw new Error(`Failed to fetch user details for userId ${userId}`);
         }
-
+ 
         return await response.json();
     } catch (error) {
         console.error(error.message);
@@ -489,11 +427,11 @@ sendButton.addEventListener('click', async () => {
                             'Authorization': `Bearer ${token}`
                         }
                     });
-
+ 
                     if (!response.ok) {
                         throw new Error('Failed to fetch users.');
                     }
-
+ 
                     const users = await response.json();
                     chatList.innerHTML = users.map(user => `
                         <a href="#" data-user-id="${user.id}" class="list-group-item">
@@ -505,12 +443,12 @@ sendButton.addEventListener('click', async () => {
                     showAlert('Error loading users. Please try again.');
                 }
             }
-
+ 
             chatList.addEventListener('click', async (event) => {
                 const target = event.target.closest('a[data-user-id]');
                 if (target) {
                     const otherUserId = target.getAttribute('data-user-id');
-
+ 
                     try {
                         const response = await fetch('/api/chat/createOrGet', {
                             method: 'POST',
@@ -520,11 +458,11 @@ sendButton.addEventListener('click', async () => {
                             },
                             body: JSON.stringify({ otherUserId })
                         });
-
+ 
                         if (!response.ok) {
                             throw new Error('Failed to get or create chat.');
                         }
-
+ 
                         const { chatId } = await response.json();
                         window.location.href = `/chat.html?id=${chatId}`;
                     } catch (error) {
@@ -533,7 +471,7 @@ sendButton.addEventListener('click', async () => {
                     }
                 }
             });
-
+ 
             async function fetchChatMessages() {
     if (chatId) {
         try {
@@ -542,14 +480,14 @@ sendButton.addEventListener('click', async () => {
                     'Authorization': `Bearer ${token}`
                 }
             });
-
+ 
             if (!response.ok) {
                 throw new Error('Failed to fetch chat messages.');
             }
-
+ 
             const chatData = await response.json();
             const messages = chatData.messages;
-
+ 
             // Determine unique user IDs for fetching user details
             const userIds = new Set(messages.map(msg => msg.fromUserId).concat(messages.map(msg => msg.toUserId)));
             const userDetailsPromises = Array.from(userIds).map(id =>
@@ -557,10 +495,10 @@ sendButton.addEventListener('click', async () => {
                     .then(res => res.json())
                     .catch(() => ({ id, fullName: 'Unknown User' }))
             );
-
+ 
             const userDetails = await Promise.all(userDetailsPromises);
             const userMap = new Map(userDetails.map(user => [user.id, user.fullName]));
-
+ 
             // Find the recipient user
             const recipientId = messages[0].toUserId; // Assuming all messages in this chat are between the same users
             const recipientName = userMap.get(recipientId) || 'Unknown User';
@@ -577,9 +515,9 @@ chatArea.innerHTML = messages.slice(2).map(message => {
         </div>
     `;
 }).join('');
-
+ 
             chatArea.scrollTop = chatArea.scrollHeight;
-
+ 
         } catch (error) {
             console.error('Error loading chat messages:', error.message);
             showAlert('Error loading chat messages. Please try again.');
@@ -589,10 +527,10 @@ chatArea.innerHTML = messages.slice(2).map(message => {
         chatArea.innerHTML = '';
     }
 }
-
+ 
             sendButton.addEventListener('click', async () => {
                 const messageText = messageInput.value.trim();
-
+ 
                 if (messageText.length > 0 && chatId) {
                     try {
                         const response = await fetch(`/api/chat/${chatId}/send`, {
@@ -603,11 +541,11 @@ chatArea.innerHTML = messages.slice(2).map(message => {
                             },
                             body: JSON.stringify({ text: messageText })
                         });
-
+ 
                         if (!response.ok) {
                             throw new Error('Failed to send message.');
                         }
-
+ 
                         messageInput.value = '';
                         chatArea.innerHTML += `
                             <div class="message sent">
@@ -623,18 +561,19 @@ chatArea.innerHTML = messages.slice(2).map(message => {
                     }
                 }
             });
-
+ 
             messageInput.addEventListener('keypress', (event) => {
                 if (event.key === 'Enter') {
                     event.preventDefault();
                     sendButton.click();
                 }
             });
-
+ 
             fetchUsers();
-            fetchChatMessages(); 
-            messageInput.focus(); 
+            fetchChatMessages();
+            messageInput.focus();
         });
     </script>
 </body>
 </html>
+ 

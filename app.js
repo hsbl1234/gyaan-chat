@@ -1,4 +1,4 @@
-require('dotenv').config()
+
 const express = require('express');
 const { open } = require('sqlite');
 const sqlite3 = require('sqlite3').verbose();
@@ -42,20 +42,20 @@ const upload = multer({
 });
 
 // Handle image uploads for chat messages
-app.post('/api/chat/:chatId/send', upload.single('attachment'), (req, res) => {
-    const { chatId } = req.params;
-    const { message } = req.body;
-    const file = req.file;
+// app.post('/api/chat/:chatId/send', upload.single('attachment'), (req, res) => {
+//     const { chatId } = req.params;
+//     const { message } = req.body;
+//     const file = req.file;
 
-    // You can store the message and file information in your database here.
-    // For this example, we're just returning the file path and message.
-    res.json({
-        chatId,
-        message,
-        attachment: file ? `/uploads/${file.filename}` : null,
-        timestamp: new Date(),
-    });
-});
+//     // You can store the message and file information in your database here.
+//     // For this example, we're just returning the file path and message.
+//     res.json({
+//         chatId,
+//         message,
+//         attachment: file ? `/uploads/${file.filename}` : null,
+//         timestamp: new Date(),
+//     });
+// });
 
 // Serve the uploaded files statically
 app.use('/uploads', express.static('uploads'));
